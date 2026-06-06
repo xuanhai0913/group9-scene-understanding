@@ -109,6 +109,22 @@ Tài liệu được viết theo đúng thứ tự trình bày:
 5. [Implement](./05_implement.md)
 6. [Test](./06_test.md)
 
+## Description Docs
+
+Các file mô tả và ghi log quá trình làm việc:
+
+- [Log Discussion](./description/logdiscusssion.md)
+- [Project Description](./description/Project%20description.md)
+- [Plan](./description/plan.md)
+
+## Project Skills
+
+Repo có 3 skill nội bộ để Agent AI hiểu đúng dự án:
+
+- `group9-scene-understanding`: scope, out of scope, feature và cách giải thích dự án.
+- `segmentation-depth-implementation`: workflow code/notebook cho segmentation + depth.
+- `ai-workflow-logging`: ghi log quá trình làm việc với Agent AI.
+
 ## Tên repo
 
 Tên repo chính:
@@ -125,4 +141,3 @@ cvip-group9-scene-understanding
 semantic-depth-road-scene
 traffic-scene-understanding-group9
 ```
-
