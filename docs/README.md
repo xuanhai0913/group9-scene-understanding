@@ -116,6 +116,7 @@ Các file mô tả và ghi log quá trình làm việc:
 - [Log Discussion](./description/logdiscusssion.md)
 - [Project Description](./description/Project%20description.md)
 - [Plan](./description/plan.md)
+- [Prompt Workflow Draft](./description/prompt_workflow_draft.md)
 
 ## Project Skills
 
