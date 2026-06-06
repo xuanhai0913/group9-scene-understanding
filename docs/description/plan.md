@@ -129,7 +129,111 @@ Việc cần làm:
 - Chuẩn bị giải thích AI workflow.
 - Chuẩn bị demo notebook/script.
 
-Phân công gợi ý:
+## 6 role để thành viên chọn trước
+
+Trước khi bắt đầu code, nhóm nên để 6 thành viên chọn role trước. Mỗi role có đầu việc riêng, nhưng khi làm báo cáo/demo vẫn cần phối hợp với nhau.
+
+### Role 1: Leader + AI Workflow + Tổng quan
+
+Phụ trách:
+
+- Chốt scope và out of scope.
+- Điều phối tiến độ nhóm.
+- Chuẩn bị knowledge base cho AI.
+- Ghi hoặc duyệt log AI khi cần.
+- Nắm pipeline tổng thể để trả lời đối đáp.
+- Kết nối các phần dataset, segmentation, depth, fusion, test.
+
+Output cần có:
+
+- Phần giới thiệu đề tài.
+- AI workflow.
+- Câu trả lời tổng quan khi giáo viên hỏi.
+
+### Role 2: Dataset + Requirement
+
+Phụ trách:
+
+- Tìm hiểu Cityscapes và KITTI.
+- Giải thích vì sao chọn dataset.
+- Chọn ảnh mẫu để demo.
+- Mô tả input/output.
+- Nêu các giới hạn của dữ liệu.
+
+Output cần có:
+
+- File/slide mô tả dataset.
+- Danh sách ảnh mẫu.
+- Giải thích input/output.
+
+### Role 3: Semantic Segmentation
+
+Phụ trách:
+
+- Tìm hiểu semantic segmentation.
+- Tìm hiểu U-Net hoặc model segmentation pretrained.
+- Chạy hoặc chuẩn bị phần segmentation.
+- Tạo segmentation mask.
+- Tạo overlay mask lên ảnh gốc.
+
+Output cần có:
+
+- Ảnh segmentation mask.
+- Ảnh segmentation overlay.
+- Giải thích segmentation là phân loại từng pixel.
+
+### Role 4: Depth Estimation
+
+Phụ trách:
+
+- Tìm hiểu depth estimation.
+- Tìm hiểu MiDaS.
+- Chạy hoặc chuẩn bị phần depth map.
+- Giải thích relative depth.
+- Nêu hạn chế khi không có khoảng cách mét tuyệt đối.
+
+Output cần có:
+
+- Depth map.
+- Giải thích vùng gần/xa.
+- Câu trả lời khi giáo viên hỏi về độ sâu.
+
+### Role 5: Fusion + Visualization
+
+Phụ trách:
+
+- Kết hợp segmentation mask và depth map.
+- Tạo ảnh tổng hợp.
+- Viết nhận xét ngữ cảnh giao thông.
+- Làm output dễ nhìn để demo.
+- Kiểm tra các hình kết quả có rõ ràng không.
+
+Output cần có:
+
+- Fusion result.
+- Hình tổng hợp: original, segmentation, depth, fusion.
+- Nhận xét ngắn cho từng ảnh demo.
+
+### Role 6: Test + Report + Slide
+
+Phụ trách:
+
+- Lập checklist test.
+- Kiểm tra preprocessing, segmentation, depth và fusion.
+- Ghi lỗi thường gặp.
+- Chuẩn bị báo cáo và slide.
+- Chuẩn bị câu hỏi phản biện.
+
+Output cần có:
+
+- Test checklist.
+- Danh sách edge cases.
+- Slide/báo cáo tổng hợp.
+- Câu hỏi và câu trả lời dự phòng.
+
+## Phân công gợi ý nếu cần chốt nhanh
+
+Nếu nhóm muốn chia nhanh, có thể dùng mẫu sau:
 
 - Hải: leader, scope, AI workflow, đối đáp.
 - Thành viên 1: dataset.
@@ -157,4 +261,3 @@ Nếu dataset khó tải:
 Nếu depth bị hỏi về khoảng cách:
 
 - Trả lời rõ đây là relative depth, không phải khoảng cách mét tuyệt đối.
-
