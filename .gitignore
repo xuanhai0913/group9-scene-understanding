@@ -1,0 +1,24 @@
+# PyTorch / Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# Models and checkpoints (Too large for standard GitHub)
+weights/
+*.pth
+*.pkl
+*.h5
+
+# Datasets (KITTI road dataset is too large)
+data/kitti/
+data/cityscapes/
+data/eval_images/
+data/test_images/
+
+# Local configuration and system files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.antigravityignore

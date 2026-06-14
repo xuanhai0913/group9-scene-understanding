@@ -1,0 +1,12 @@
+=== KET QUA PHAN TICH DO SAU THEO LOP NGU NGHIA (um_000000) ===
+Disparity lay tu model MiDaS (0-255). Gia tri cang cao nghia la cang gan camera.
+Khoang cach (m) uoc luong bang cong thuc: 1000 / (Disparity + 1e-5).
+---------------------------------------------------------------------------
+- Void/Nen (Khong xac dinh)           | Khong phat hien trong khung hinh
+- Road/Mat duong                      | Disparity TB: 165.42 | Khoang cach uoc luong:   6.0m
+- Sidewalk/Via he                     | Disparity TB: 195.05 | Khoang cach uoc luong:   5.1m
+- Object/Bien bao/Den tin hieu        | Khong phat hien trong khung hinh
+- Nature/Cay coi/Tu nhien             | Disparity TB: 115.18 | Khoang cach uoc luong:   8.7m
+- Sky/Bau troi                        | Disparity TB:  60.36 | Khoang cach uoc luong:  16.6m
+- Human/Nguoi di bo                   | Disparity TB: 159.04 | Khoang cach uoc luong:   6.3m
+- Vehicle/Phuong tien giao thong      | Disparity TB: 179.30 | Khoang cach uoc luong:   5.6m
