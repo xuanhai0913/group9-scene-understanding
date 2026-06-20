@@ -65,6 +65,7 @@ parser.add_argument('--full_road', action='store_true', help="Giam sat va canh b
 parser.add_argument('--skip_frames', type=int, default=1, help="Chi xu ly moi khung hinh thu N de tang toc tren CPU (skip_frames >= 1)")
 parser.add_argument('--save_video', type=str, default="", help="Duong dan de ghi video dau ra (vd: output.mp4)")
 parser.add_argument('--headless', action='store_true', help="Chay khong can hien thi giao dien (rat huu ich tren Google Colab)")
+parser.add_argument('--split_road', action='store_true', help="Ep buoc giam sat chia lan (chi quan sat lan ben phai cua minh, bo qua lan trai)")
 args = parser.parse_args()
 
 video_path = args.video_path
@@ -683,7 +684,10 @@ try:
                     else:
                         print("[AUTO-DETECTION] Khong phat hien xe nguoc chieu. Duy tri che do duong 1 chieu (full_road = True).")
                                         
-            is_full_road = args.full_road or not getattr(tracker, 'auto_split_road_detected', False)
+            if args.split_road:
+                is_full_road = False
+            else:
+                is_full_road = args.full_road or not getattr(tracker, 'auto_split_road_detected', False)
             
             if is_full_road:
                 camera_center = (int(disp_w * 0.50), int(disp_h * 0.92))
