@@ -775,6 +775,10 @@ try:
                             
                         is_in_lane = (x_center_orig >= x_div_left) and (x_center_orig <= x_div_right)
                     
+                    dist_curr = 1000.0 / (track['depth_history'][-1] + 1e-5)
+                    is_in_lane_geometric = is_in_lane
+                    is_on_road = True
+                    
                     # AI-Logic Fusion: Filter out objects that are NOT on the drivable road mask (e.g. median strip, grass, sidewalks)
                     road_class_idx = 0 if (unet_model is not None and getattr(unet_model, "num_classes", 8) == 4) else 1
                     # Fallback: if road mask in seg_mask_road is too empty, bypass the road constraint to remain robust
@@ -788,9 +792,13 @@ try:
                         x_end = int(min(w, x_center_chk + 10))
                         region = seg_mask_road[y_start:y_end, x_start:x_end]
                         is_on_road = np.any(region == road_class_idx)
-                        is_in_lane = is_in_lane and is_on_road
+                        
+                    # Bypassing road check for very close vehicles to prevent blind spots when the vehicle blocks the road view
+                    if dist_curr < 6.0 and is_in_lane_geometric:
+                        is_in_lane = True
+                    else:
+                        is_in_lane = is_in_lane_geometric and is_on_road
                     
-                    dist_curr = 1000.0 / (track['depth_history'][-1] + 1e-5)
                     delta_d = track.get('delta_d', 0.0)
                     
                     track['dist'] = dist_curr
