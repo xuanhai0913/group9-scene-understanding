@@ -75,7 +75,19 @@ Hệ thống tự động phân loại loại đường dựa trên các đặc 
     *   **Ép buộc quét toàn đường (`--full_road`):** Ép buộc hệ thống chạy ở chế độ quét toàn bộ mặt đường (`is_full_road = True`), bỏ qua kết quả nhận diện tự động.
     *   **Ép buộc quét chia làn (`--split_road`):** Ép buộc hệ thống chạy ở chế độ chia làn (`is_full_road = False`), bỏ qua kết quả nhận diện tự động (rất hữu ích cho góc quay camera CCTV cố định trên cao).
 
-### 2. Ước lượng khoảng cách & Cảnh báo va chạm đa hướng
+### 2. Thuật toán AI-Logic Fusion: Lọc chướng ngại vật ngoài đường (Off-road Filtering)
+Để giải quyết triệt để lỗi cảnh báo va chạm sai do hành lang giám sát hình học hình thang cắt qua dải phân cách cứng (median strip) hoặc vỉa hè (sidewalk) trong các video CCTV hoặc góc quay rộng, hệ thống tích hợp trực tiếp kết quả phân đoạn mặt đường của U-Net với phát hiện vật thể:
+*   **Thuật toán kết hợp:** Một chướng ngại vật chỉ được xác định là nằm trong hành lang di chuyển (`is_in_lane = True`) nếu nó đồng thời thỏa mãn hai điều kiện:
+    1.  *Điều kiện hình học:* Điểm tâm vật thể nằm trong hành lang giám sát (đa giác hình thang của chế độ tương ứng).
+    2.  *Điều kiện phân đoạn AI:* Điểm tiếp xúc chân/bánh xe của vật thể với mặt đường nằm trên vùng phân đoạn mặt đường thực tế của U-Net (`Class 1: Road` / `Class 0: Road` tùy mô hình).
+*   **Hiệu quả thực tế:** Loại bỏ hoàn toàn các báo động sai từ người đi bộ đứng trên dải phân cách, xe đi bên kia dải phân cách cứng, hoặc xe đỗ trên vỉa hè.
+
+### 3. Vẽ hành lang an toàn động bám theo mặt đường (Road-Masked Ego Corridor)
+Thay vì vẽ hành lang hình thang cố định đè lên cảnh vật xung quanh gây mất thẩm mỹ và kém chính xác, hệ thống sử dụng mặt nạ nhị phân của U-Net để cắt tỉa đồ họa:
+*   Hệ thống thực hiện phép giao logic (bitwise AND) giữa đa giác hành lang giám sát với mặt nạ phân đoạn mặt đường thực tế trước khi tô màu xanh lá (`overlay[poly_mask & road_mask] = (0, 255, 0)`).
+*   Nhờ đó, hành lang xanh lá chỉ phủ trên mặt đường nhựa, tự động bo góc và cắt gọn tại mép dải phân cách hoặc vỉa hè, mang lại trải nghiệm thị giác cao cấp.
+
+### 4. Ước lượng khoảng cách & Cảnh báo va chạm đa hướng
 Khoảng cách thực tế (mét) từ camera đến chướng ngại vật được ước lượng tuyến tính thông qua giá trị độ sâu của MiDaS:
 *   Công thức tính: `Dist = 1000.0 / (Depth_val + 0.00001)`
 

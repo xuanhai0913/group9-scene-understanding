@@ -741,6 +741,20 @@ try:
                             
                         is_in_lane = (x_center_orig >= x_div_left) and (x_center_orig <= x_div_right)
                     
+                    # AI-Logic Fusion: Filter out objects that are NOT on the drivable road mask (e.g. median strip, grass, sidewalks)
+                    road_class_idx = 0 if (unet_model is not None and getattr(unet_model, "num_classes", 8) == 4) else 1
+                    # Fallback: if road mask in seg_mask_full is too empty, bypass the road constraint to remain robust
+                    if np.sum(seg_mask_full == road_class_idx) >= (w * h * 0.05):
+                        y_bottom = min(h - 1, max(0, ymax_orig))
+                        x_center_chk = min(w - 1, max(0, x_center_orig))
+                        y_start = max(0, y_bottom - 15)
+                        y_end = min(h, y_bottom + 5)
+                        x_start = max(0, x_center_chk - 10)
+                        x_end = min(w, x_center_chk + 10)
+                        region = seg_mask_full[y_start:y_end, x_start:x_end]
+                        is_on_road = np.any(region == road_class_idx)
+                        is_in_lane = is_in_lane and is_on_road
+                    
                     dist_curr = 1000.0 / (track['depth_history'][-1] + 1e-5)
                     delta_d = track.get('delta_d', 0.0)
                     
@@ -813,6 +827,14 @@ try:
             disp_pt_right_top = (int(pt_right_top[0] * scale_x), int(pt_right_top[1] * scale_y)) if pt_right_top else None
 
             overlay = output_frame.copy()
+            road_class_idx = 0 if (unet_model is not None and getattr(unet_model, "num_classes", 8) == 4) else 1
+            seg_mask_resized = cv2.resize(seg_mask_full, (disp_w, disp_h), interpolation=cv2.INTER_NEAREST)
+            road_mask = (seg_mask_resized == road_class_idx)
+            
+            # If the road mask is virtually empty (e.g. < 5% of the frame area), fallback to treating the whole frame as road for visual stability
+            if np.sum(road_mask) < (disp_w * disp_h * 0.05):
+                road_mask = np.ones((disp_h, disp_w), dtype=bool)
+
             if is_full_road:
                 disp_ego_poly = np.array([
                     (int(disp_w * 0.15), int(disp_h * 0.95)),
@@ -820,17 +842,41 @@ try:
                     (int(disp_w * 0.65), int(disp_h * 0.55)),
                     (int(disp_w * 0.90), int(disp_h * 0.95))
                 ], dtype=np.int32)
-                cv2.fillPoly(overlay, [disp_ego_poly], (0, 255, 0))
-                cv2.addWeighted(overlay, 0.15, output_frame, 0.85, 0, output_frame)
-                cv2.line(output_frame, disp_ego_poly[0], disp_ego_poly[1], (0, 255, 0), 2, cv2.LINE_AA)
-                cv2.line(output_frame, disp_ego_poly[3], disp_ego_poly[2], (0, 255, 0), 2, cv2.LINE_AA)
+                
+                # Fill poly only on road pixels
+                poly_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
+                cv2.fillPoly(poly_mask, [disp_ego_poly], 255)
+                overlay[poly_mask == 255] = (0, 255, 0)
+                
+                # Mask lines
+                line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
+                cv2.line(line_mask, disp_ego_poly[0], disp_ego_poly[1], 255, 2)
+                cv2.line(line_mask, disp_ego_poly[3], disp_ego_poly[2], 255, 2)
+                
+                # Blend filled poly on road
+                blended = cv2.addWeighted(overlay, 0.15, output_frame, 0.85, 0)
+                mask_indices = (poly_mask == 255) & road_mask
+                output_frame[mask_indices] = blended[mask_indices]
+                
+                # Draw lines on road
+                output_frame[(line_mask == 255) & road_mask] = (0, 255, 0)
             else:
                 if pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top:
                     lane_pts_disp = np.array([disp_pt_left_bottom, disp_pt_left_top, disp_pt_right_top, disp_pt_right_bottom], dtype=np.int32)
-                    cv2.fillPoly(overlay, [lane_pts_disp], (0, 255, 0))
-                    cv2.addWeighted(overlay, 0.15, output_frame, 0.85, 0, output_frame)
-                    cv2.line(output_frame, disp_pt_left_bottom, disp_pt_left_top, (0, 255, 0), 2, cv2.LINE_AA)
-                    cv2.line(output_frame, disp_pt_right_bottom, disp_pt_right_top, (0, 255, 0), 2, cv2.LINE_AA)
+                    
+                    poly_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
+                    cv2.fillPoly(poly_mask, [lane_pts_disp], 255)
+                    overlay[poly_mask == 255] = (0, 255, 0)
+                    
+                    line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
+                    cv2.line(line_mask, disp_pt_left_bottom, disp_pt_left_top, 255, 2)
+                    cv2.line(line_mask, disp_pt_right_bottom, disp_pt_right_top, 255, 2)
+                    
+                    blended = cv2.addWeighted(overlay, 0.15, output_frame, 0.85, 0)
+                    mask_indices = (poly_mask == 255) & road_mask
+                    output_frame[mask_indices] = blended[mask_indices]
+                    
+                    output_frame[(line_mask == 255) & road_mask] = (0, 255, 0)
                     
                     p1, p2 = disp_pt_left_bottom, disp_pt_left_top
                     num_segments = 15
@@ -839,7 +885,11 @@ try:
                         t2 = min(1.0, (i + 0.5) / num_segments)
                         sub_pt1 = (int(p1[0] + t1 * (p2[0] - p1[0])), int(p1[1] + t1 * (p2[1] - p1[1])))
                         sub_pt2 = (int(p1[0] + t2 * (p2[0] - p1[0])), int(p1[1] + t2 * (p2[1] - p1[1])))
-                        cv2.line(output_frame, sub_pt1, sub_pt2, (0, 255, 255), 2)
+                        
+                        seg_line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
+                        cv2.line(seg_line_mask, sub_pt1, sub_pt2, 255, 2)
+                        output_frame[(seg_line_mask == 255) & road_mask] = (0, 255, 255)
+                        
                     cv2.putText(output_frame, "LANE SEPARATOR", (disp_pt_left_top[0] - int(10 * (disp_w / 640.0)), disp_pt_left_top[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, annot_scale, (0, 255, 255), annot_thickness, cv2.LINE_AA)
                 else:
                     lane_pts_disp = np.array([
@@ -848,15 +898,25 @@ try:
                         (int(disp_w * 0.62), int(disp_h * 0.55)),
                         (int(disp_w * 0.92), int(disp_h * 0.95))
                     ], dtype=np.int32)
-                    cv2.fillPoly(overlay, [lane_pts_disp], (128, 64, 128))
-                    cv2.addWeighted(overlay, 0.1, output_frame, 0.9, 0, output_frame)
+                    
+                    poly_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
+                    cv2.fillPoly(poly_mask, [lane_pts_disp], 255)
+                    overlay[poly_mask == 255] = (128, 64, 128)
+                    
+                    blended = cv2.addWeighted(overlay, 0.1, output_frame, 0.9, 0)
+                    mask_indices = (poly_mask == 255) & road_mask
+                    output_frame[mask_indices] = blended[mask_indices]
                     
                     for y_draw in range(y_top, y_bottom, 15):
                         r1 = (y_draw - y_top) / (y_bottom - y_top)
                         r2 = (min(y_draw + 8, y_bottom) - y_top) / (y_bottom - y_top)
                         pt1 = (int(x_top + r1 * (x_bottom - x_top)), y_draw)
                         pt2 = (int(x_top + r2 * (x_bottom - x_top)), min(y_draw + 8, y_bottom))
-                        cv2.line(output_frame, pt1, pt2, (0, 255, 255), 2)
+                        
+                        seg_line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
+                        cv2.line(seg_line_mask, pt1, pt2, 255, 2)
+                        output_frame[(seg_line_mask == 255) & road_mask] = (0, 255, 255)
+                        
                     lane_sep_x = max(10, x_top - int(120 * (disp_w / 640.0)))
                     cv2.putText(output_frame, "LANE SEPARATOR", (lane_sep_x, y_top + 20), cv2.FONT_HERSHEY_SIMPLEX, annot_scale, (0, 255, 255), annot_thickness, cv2.LINE_AA)
 
@@ -964,7 +1024,7 @@ try:
                         cv2.rectangle(output_frame, (xmin, y_label - h_label - 4), (xmin + w_label + 10, y_label + 4), color, 1)
                     cv2.putText(output_frame, label_text, (xmin + 5, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
                     
-                    if track['type'] in ['vehicle', 'human'] and (is_full_road or track['is_in_lane'] or is_cutting_in):
+                    if track['type'] in ['vehicle', 'human'] and (track['is_in_lane'] or is_cutting_in):
                         line_thickness = 2 if (is_danger or is_cutting_in) else 1
                         if is_lost:
                             draw_dashed_line(output_frame, camera_center, (x_center, y_center), color, line_thickness)
