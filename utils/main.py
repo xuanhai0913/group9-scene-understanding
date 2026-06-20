@@ -334,6 +334,7 @@ class InferenceThread(threading.Thread):
                         'pt_right_top': pt_right_top,
                         'detected_obstacles': [],
                         'seg_mask_full': None,
+                        'seg_mask_road': None,
                         'color_mask': None,
                         'is_midas_demo': True
                     })
@@ -427,6 +428,9 @@ class InferenceThread(threading.Thread):
                     self.use_fallback_detection, num_classes
                 )
 
+                # Keep a clean copy of the road segmentation mask before overwriting target bounding boxes
+                seg_mask_road = seg_mask_full.copy()
+
                 # Apply fused targets back onto seg_mask_full & color_mask
                 if self.use_fallback_detection:
                     color_mask = np.zeros_like(frame)
@@ -477,6 +481,7 @@ class InferenceThread(threading.Thread):
                     'depth_map': depth_map,
                     'depth_colored_full': depth_colored_full,
                     'seg_mask_full': seg_mask_full,
+                    'seg_mask_road': seg_mask_road,
                     'color_mask': color_mask,
                     'detected_obstacles': fused_obstacles,
                     'pt_left_bottom': pt_left_bottom,
@@ -611,6 +616,9 @@ try:
             dashboard = np.hstack((view_main, view_depth, view_combined))
         else:
             seg_mask_full = result['seg_mask_full']
+            seg_mask_road = result.get('seg_mask_road', seg_mask_full)
+            if seg_mask_road is None:
+                seg_mask_road = seg_mask_full
             color_mask = result['color_mask']
             detected_obstacles = result['detected_obstacles']
             
@@ -769,8 +777,8 @@ try:
                     
                     # AI-Logic Fusion: Filter out objects that are NOT on the drivable road mask (e.g. median strip, grass, sidewalks)
                     road_class_idx = 0 if (unet_model is not None and getattr(unet_model, "num_classes", 8) == 4) else 1
-                    # Fallback: if road mask in seg_mask_full is too empty, bypass the road constraint to remain robust
-                    if np.sum(seg_mask_full == road_class_idx) >= (w * h * 0.05):
+                    # Fallback: if road mask in seg_mask_road is too empty, bypass the road constraint to remain robust
+                    if np.sum(seg_mask_road == road_class_idx) >= (w * h * 0.05):
                         # Cap y query at 90% of height to bypass hood/dashboard segmentation noise
                         y_check = int(min(int(h * 0.90), max(0, ymax_orig)))
                         x_center_chk = int(min(w - 1, max(0, x_center_orig)))
@@ -778,7 +786,7 @@ try:
                         y_end = int(min(h, y_check + 5))
                         x_start = int(max(0, x_center_chk - 10))
                         x_end = int(min(w, x_center_chk + 10))
-                        region = seg_mask_full[y_start:y_end, x_start:x_end]
+                        region = seg_mask_road[y_start:y_end, x_start:x_end]
                         is_on_road = np.any(region == road_class_idx)
                         is_in_lane = is_in_lane and is_on_road
                     
