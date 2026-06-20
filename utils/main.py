@@ -814,7 +814,7 @@ try:
                                     is_moving_towards_lane = False
                                     if len(box_history) >= 3:
                                         x_prev = (box_history[-3][0] + box_history[-3][2]) // 2
-                                        lane_center_x = (ego_poly_orig[1][0] + ego_poly_orig[2][0]) // 2
+                                        lane_center_x = (lane_left_x[y_check] + lane_right_x[y_check]) // 2
                                         if x_center_orig < lane_center_x:
                                             is_moving_towards_lane = (x_center_orig > x_prev + 4)
                                         else:
