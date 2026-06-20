@@ -75,17 +75,18 @@ Hệ thống tự động phân loại loại đường dựa trên các đặc 
     *   **Ép buộc quét toàn đường (`--full_road`):** Ép buộc hệ thống chạy ở chế độ quét toàn bộ mặt đường (`is_full_road = True`), bỏ qua kết quả nhận diện tự động.
     *   **Ép buộc quét chia làn (`--split_road`):** Ép buộc hệ thống chạy ở chế độ chia làn (`is_full_road = False`), bỏ qua kết quả nhận diện tự động (rất hữu ích cho góc quay camera CCTV cố định trên cao).
 
-### 2. Thuật toán AI-Logic Fusion: Lọc chướng ngại vật ngoài đường (Off-road Filtering)
-Để giải quyết triệt để lỗi cảnh báo va chạm sai do hành lang giám sát hình học hình thang cắt qua dải phân cách cứng (median strip) hoặc vỉa hè (sidewalk) trong các video CCTV hoặc góc quay rộng, hệ thống tích hợp trực tiếp kết quả phân đoạn mặt đường của U-Net với phát hiện vật thể:
-*   **Thuật toán kết hợp:** Một chướng ngại vật chỉ được xác định là nằm trong hành lang di chuyển (`is_in_lane = True`) nếu nó đồng thời thỏa mãn hai điều kiện:
-    1.  *Điều kiện hình học:* Điểm tâm vật thể nằm trong hành lang giám sát (đa giác hình thang của chế độ tương ứng).
-    2.  *Điều kiện phân đoạn AI:* Điểm tiếp xúc chân/bánh xe của vật thể với mặt đường nằm trên vùng phân đoạn mặt đường thực tế của U-Net (`Class 1: Road` / `Class 0: Road` tùy mô hình).
-*   **Hiệu quả thực tế:** Loại bỏ hoàn toàn các báo động sai từ người đi bộ đứng trên dải phân cách, xe đi bên kia dải phân cách cứng, hoặc xe đỗ trên vỉa hè.
+### 2. Thuật toán AI-Logic Fusion: Hành lang an toàn động bám đường (Dynamic Road-Following Corridor)
+Thay vì sử dụng các đa giác hình thang hình học tĩnh (dễ bị lệch và đè lên dải phân cách khi đường cong hoặc xe di chuyển), hệ thống xây dựng hành lang an toàn động theo thời gian thực dòng-theo-dòng (row-by-row) trực tiếp từ kết quả phân đoạn mặt đường của U-Net:
+*   **Thuật toán sinh hành lang:** Ở mỗi hàng ngang $y$ từ đáy ảnh lên đến tầm mắt phía xa ($y$ từ $0.55 \times h$ đến $0.95 \times h$), hệ thống quét tìm vị trí biên trái ($x_{left}$) và biên phải ($x_{right}$) của vùng mặt đường nhựa được U-Net phân đoạn.
+    *   *Ở chế độ quét toàn bộ mặt đường (đường 1 chiều):* Hành lang tại hàng $y$ được xác định trong khoảng $[x_{left}, x_{right}]$.
+    *   *Ở chế độ quét chia làn (đường 2 chiều/đường đôi):* Hệ thống tính trung điểm mặt đường $x_{mid} = (x_{left} + x_{right}) / 2$. Hành lang an toàn chỉ giới hạn ở làn xe chủ bên phải trong khoảng $[x_{mid}, x_{right}]$.
+*   **Vị trí xe chủ động (Dynamic MY CAR Position):** Thay vì đặt cố định ở tâm màn hình, điểm `MY CAR` được tính toán động tại trung điểm của đáy hành lang an toàn thực tế ($y = 0.95 \times h$). Nhờ đó, biểu tượng `MY CAR` sẽ tự động dịch chuyển mượt mà sang làn bên phải khi ở chế độ chia làn và tự động uốn lượn chính xác theo các khúc cua của đường.
+*   **Định giá làn đường động (Dynamic Lane Occupancy):** Đối với mỗi chướng ngại vật có tọa độ chân tiếp xúc $(x_{center}, y_{bottom})$, hệ thống kiểm tra trực tiếp xem $x_{center}$ có nằm trong khoảng $[lane\_left\_x[y_{bottom}], lane\_right\_x[y_{bottom}]]$ hay không. Điều này loại bỏ hoàn toàn việc tính đa giác cố định và giúp việc phát hiện vật cản trong làn thích ứng hoàn hảo với mọi khúc cua.
 
-### 3. Vẽ hành lang an toàn động bám theo mặt đường (Road-Masked Ego Corridor)
-Thay vì vẽ hành lang hình thang cố định đè lên cảnh vật xung quanh gây mất thẩm mỹ và kém chính xác, hệ thống sử dụng mặt nạ nhị phân của U-Net để cắt tỉa đồ họa:
-*   Hệ thống thực hiện phép giao logic (bitwise AND) giữa đa giác hành lang giám sát với mặt nạ phân đoạn mặt đường thực tế trước khi tô màu xanh lá (`overlay[poly_mask & road_mask] = (0, 255, 0)`).
-*   Nhờ đó, hành lang xanh lá chỉ phủ trên mặt đường nhựa, tự động bo góc và cắt gọn tại mép dải phân cách hoặc vỉa hè, mang lại trải nghiệm thị giác cao cấp.
+### 3. Vẽ và đồ họa hóa hành lang uốn lượn thời gian thực
+Hệ thống kết nối các điểm ranh giới dòng-theo-dòng thu được để dựng nên đa giác hành lang an toàn dạng spline uốn lượn bám khít theo đường đi thực tế:
+*   Toàn bộ diện tích hành lang được tô màu xanh lá mờ, kết hợp với hai đường biên ngoài vẽ sắc nét bằng OpenCV polylines và được giới hạn hoàn toàn trong vùng mặt đường nhựa nhựa thực tế.
+*   Trong chế độ chia làn, dải phân cách làn ở giữa ($x_{mid}$) được vẽ dưới dạng vạch kẻ đường nét đứt màu vàng động, uốn lượn chính xác theo các khúc cua thực tế của đường đi. Vạch kẻ này tự động đi kèm nhãn chỉ dẫn `LANE SEPARATOR` động bám theo đỉnh làn đường phía xa.
 
 ### 4. Ước lượng khoảng cách & Cảnh báo va chạm đa hướng
 Khoảng cách thực tế (mét) từ camera đến chướng ngại vật được ước lượng tuyến tính thông qua giá trị độ sâu của MiDaS:
