@@ -69,8 +69,8 @@ Hệ thống tự động phân loại loại đường dựa trên các đặc 
 
 *   **Chế độ Tự động nhận diện (Mặc định - Auto-Detection Mode):**
     *   **Logic hệ thống:** Hệ thống tự động phân tích video để xác định loại đường:
-        *   *Nếu phát hiện vạch màu vàng chia làn hoặc xe ngược chiều:* Tự động chuyển sang chế độ **Giám sát chia làn** (`is_full_road = False`), giới hạn hành lang màu xanh lá ở làn bên phải và dịch chuyển tâm `camera_center` sang phải: `(0.70 * w, 0.92 * h)` để tránh cảnh báo nhầm các xe đi ngược chiều hoặc đi song song bên trái.
-        *   *Nếu không phát hiện dấu hiệu đường 2 chiều:* Hệ thống duy trì chế độ **Giám sát toàn bộ mặt đường** (`is_full_road = True`) phù hợp cho đường 1 chiều, đặt tâm `camera_center` ở chính giữa đáy ảnh: `(0.50 * w, 0.92 * h)`.
+        *   *Nếu phát hiện vạch màu vàng chia làn, xe ngược chiều ở làn trái, hoặc dải phân cách cứng (cây xanh/bê tông) ở biên trái:* Tự động chuyển sang chế độ **Giám sát chia làn** (`is_full_road = False`) phù hợp cho đường 2 chiều hoặc đường đôi. Khi đó, hệ thống giới hạn hành lang màu xanh lá ở làn bên phải và dịch chuyển tâm `camera_center` sang bên phải `(0.70 * w, 0.92 * h)` để tránh cảnh báo nhầm các xe đi ngược chiều hoặc song song bên trái.
+        *   *Nếu không phát hiện dấu hiệu đường 2 chiều hay dải phân cách:* Hệ thống duy trì chế độ **Giám sát toàn bộ mặt đường** (`is_full_road = True`) phù hợp cho đường 1 chiều không chia dải phân cách, đặt tâm `camera_center` ở chính giữa đáy ảnh `(0.50 * w, 0.92 * h)`.
 *   **Chế độ Cấu hình thủ công (Manual Override):**
     *   **Ép buộc quét toàn đường (`--full_road`):** Ép buộc hệ thống chạy ở chế độ quét toàn bộ mặt đường (`is_full_road = True`), bỏ qua kết quả nhận diện tự động.
     *   **Ép buộc quét chia làn (`--split_road`):** Ép buộc hệ thống chạy ở chế độ chia làn (`is_full_road = False`), bỏ qua kết quả nhận diện tự động (rất hữu ích cho góc quay camera CCTV cố định trên cao).

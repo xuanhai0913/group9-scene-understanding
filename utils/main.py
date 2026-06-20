@@ -633,6 +633,7 @@ try:
                     tracker.oncoming_hits_count = 0
                     tracker.processed_frames_count = 0
                     tracker.yellow_line_check_count = 0
+                    tracker.divider_check_count = 0
                 
                 tracker.processed_frames_count += 1
                 
@@ -661,7 +662,27 @@ try:
                         tracker.auto_split_road_detected = True
                         print("[AUTO-DETECTION] Phat hien vach ke duong mau vang (vach phan chia 2 chieu). Tu dong bat che do duong 2 chieu (full_road = False)!")
                 
-                # 2. Thuật toán động theo dõi xe ngược chiều ở làn trái (dự phòng)
+                # 2. Kiểm tra dải phân cách cứng (cây xanh/bê tông) ở biên trái để tự động nhận dạng đường đôi
+                if tracker.processed_frames_count <= 30:
+                    try:
+                        y1_div = int(orig_h * 0.6)
+                        y2_div = int(orig_h * 0.9)
+                        x1_div = int(orig_w * 0.02)
+                        x2_div = int(orig_w * 0.20)
+                        
+                        left_strip = seg_mask_full[y1_div:y2_div, x1_div:x2_div]
+                        if left_strip.size > 0:
+                            divider_pixels = np.sum((left_strip == 4) | (left_strip == 2))
+                            if divider_pixels > (left_strip.size * 0.25):
+                                tracker.divider_check_count += 1
+                    except Exception:
+                        pass
+                    
+                    if tracker.divider_check_count >= 12:
+                        tracker.auto_split_road_detected = True
+                        print("[AUTO-DETECTION] Phat hien dai phan cach cung ben trai. Tu dong bat che do duong doi (full_road = False)!")
+
+                # 3. Thuật toán động theo dõi xe ngược chiều ở làn trái (dự phòng)
                 for tid, track in active_tracks.items():
                     if track['type'] == 'vehicle':
                         xmin_orig, ymin_orig, xmax_orig, ymax_orig = track['box']
@@ -676,13 +697,14 @@ try:
                                 if diff < -3.0:
                                     tracker.oncoming_hits_count += 1
                                     
-                # Quyết định chế độ đường sau 45 khung hình đầu tiên nếu chưa nhận diện được bằng vạch kẻ đường
+                # Quyết định chế độ đường sau 45 khung hình đầu tiên nếu chưa nhận diện được bằng vạch kẻ đường/dải phân cách
                 if tracker.processed_frames_count == 45:
                     if tracker.oncoming_hits_count >= 8:
                         tracker.auto_split_road_detected = True
                         print("[AUTO-DETECTION] Phat hien xe nguoc chieu tren lan trai. Tu dong bat che do duong 2 chieu (full_road = False)!")
                     else:
-                        print("[AUTO-DETECTION] Khong phat hien xe nguoc chieu. Duy tri che do duong 1 chieu (full_road = True).")
+                        if not getattr(tracker, 'auto_split_road_detected', False):
+                            print("[AUTO-DETECTION] Khong phat hien xe nguoc chieu hay dai phan cach. Duy tri che do duong 1 chieu (full_road = True).")
                                         
             if args.full_road:
                 is_full_road = True
