@@ -775,7 +775,7 @@ try:
                     # AI-Logic Fusion: Filter out objects that are NOT on the drivable road mask (e.g. median strip, grass, sidewalks)
                     # Fallback: if road mask in seg_mask_full is too empty, bypass the road constraint to remain robust
                     if np.sum(seg_mask_full == road_class_idx) >= (w * h * 0.05):
-                        y_bottom_pix = int(min(h - 1, max(0, ymax_orig)))
+                        y_bottom_pix = y_check
                         x_center_chk = int(min(w - 1, max(0, x_center_orig)))
                         y_start = int(max(0, y_bottom_pix - 15))
                         y_end = int(min(h, y_bottom_pix + 5))
