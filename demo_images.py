@@ -172,7 +172,7 @@ def process_single_image(image_path, unet_model, detection_model, depth_estimato
                 is_closest_warn = True
             
             color = (0, 0, 255) if is_closest_warn else (0, 255, 0)
-            thickness = max(2, int(4 * (orig_w / 1280.0))) if is_closest_warn else max(1, int(2 * (orig_w / 1280.0)))
+            thickness = max(3, int(4 * (orig_w / 1280.0))) if is_closest_warn else max(2, int(2.5 * (orig_w / 1280.0)))
             
             cv2.rectangle(output_frame, (xmin, ymin), (xmax, ymax), color, thickness)
             
@@ -186,7 +186,7 @@ def process_single_image(image_path, unet_model, detection_model, depth_estimato
                 y_label = ymin + h_label + 8 + thickness
             
             cv2.rectangle(output_frame, (xmin, y_label - h_label - 6), (xmin + w_label + 10, y_label + 6), (0, 0, 0), -1)
-            cv2.rectangle(output_frame, (xmin, y_label - h_label - 6), (xmin + w_label + 10, y_label + 6), color, 1)
+            cv2.rectangle(output_frame, (xmin, y_label - h_label - 6), (xmin + w_label + 10, y_label + 6), color, max(1, thickness - 1))
             cv2.putText(output_frame, label_text, (xmin + 5, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
             
             # Vẽ đường radar kết nối va chạm
@@ -197,7 +197,8 @@ def process_single_image(image_path, unet_model, detection_model, depth_estimato
             
             if x_center >= x_divider and y_center <= camera_center[1]:
                 if obs.get('type') in ['vehicle', 'human']:
-                    cv2.line(output_frame, camera_center, (x_center, y_center), color, 2 if is_closest_warn else 1)
+                    line_thickness = thickness if is_closest_warn else max(1, thickness - 1)
+                    cv2.line(output_frame, camera_center, (x_center, y_center), color, line_thickness)
                     cv2.circle(output_frame, (x_center, y_center), 4, color, -1)
 
     # Vẽ biểu tượng MY CAR

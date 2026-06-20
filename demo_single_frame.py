@@ -237,7 +237,7 @@ def main():
             
             # Mau sac cho vat the: Do neu la vat de doa va cham gan nhat, Nguoc lai la Xanh la
             color = (0, 0, 255) if is_closest_warn else (0, 255, 0)
-            thickness = max(2, int(4 * (orig_w / 1280.0))) if is_closest_warn else max(1, int(2 * (orig_w / 1280.0)))
+            thickness = max(3, int(4 * (orig_w / 1280.0))) if is_closest_warn else max(2, int(2.5 * (orig_w / 1280.0)))
             
             # Ve hop bao quanh xe/nguoi
             cv2.rectangle(output_frame, (xmin, ymin), (xmax, ymax), color, thickness)
@@ -255,7 +255,7 @@ def main():
             
             # Ve hop nen chu mau den tuyet doi voi vien cung mau canh bao de de doc
             cv2.rectangle(output_frame, (xmin, y_label - h_label - 6), (xmin + w_label + 10, y_label + 6), (0, 0, 0), -1)
-            cv2.rectangle(output_frame, (xmin, y_label - h_label - 6), (xmin + w_label + 10, y_label + 6), color, 1)
+            cv2.rectangle(output_frame, (xmin, y_label - h_label - 6), (xmin + w_label + 10, y_label + 6), color, max(1, thickness - 1))
             
             # Ve chu mau trang sieu sac net su dung cv2.LINE_AA
             cv2.putText(output_frame, label_text, (xmin + 5, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
@@ -269,7 +269,8 @@ def main():
             # Neu nam trong lan duong cua minh (ben phai x_divider va phia tren camera_center)
             if x_center >= x_divider and y_center <= camera_center[1]:
                 # Ve duong noi radar den xe
-                cv2.line(output_frame, camera_center, (x_center, y_center), color, 2 if is_closest_warn else 1)
+                line_thickness = thickness if is_closest_warn else max(1, thickness - 1)
+                cv2.line(output_frame, camera_center, (x_center, y_center), color, line_thickness)
                 cv2.circle(output_frame, (x_center, y_center), 4, color, -1)
 
     # Ve mui xe "MY CAR"
