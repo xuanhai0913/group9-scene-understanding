@@ -665,20 +665,20 @@ try:
                 # 2. Kiểm tra dải phân cách cứng (cây xanh/bê tông) ở biên trái để tự động nhận dạng đường đôi
                 if tracker.processed_frames_count <= 30:
                     try:
-                        y1_div = int(orig_h * 0.6)
-                        y2_div = int(orig_h * 0.9)
-                        x1_div = int(orig_w * 0.02)
-                        x2_div = int(orig_w * 0.20)
+                        y1_div = int(orig_h * 0.55)
+                        y2_div = int(orig_h * 0.85)
+                        x1_div = int(orig_w * 0.12)
+                        x2_div = int(orig_w * 0.42)
                         
                         left_strip = seg_mask_full[y1_div:y2_div, x1_div:x2_div]
                         if left_strip.size > 0:
                             divider_pixels = np.sum((left_strip == 4) | (left_strip == 2))
-                            if divider_pixels > (left_strip.size * 0.25):
+                            if divider_pixels > (left_strip.size * 0.15):
                                 tracker.divider_check_count += 1
                     except Exception:
                         pass
                     
-                    if tracker.divider_check_count >= 12:
+                    if tracker.divider_check_count >= 8:
                         tracker.auto_split_road_detected = True
                         print("[AUTO-DETECTION] Phat hien dai phan cach cung ben trai. Tu dong bat che do duong doi (full_road = False)!")
 
