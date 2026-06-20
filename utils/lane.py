@@ -13,8 +13,8 @@ def detect_lanes(frame: np.ndarray):
         tuple: (pt_left_bottom, pt_left_top, pt_right_bottom, pt_right_top)
     """
     h, w = frame.shape[:2]
-    left_x_bottom = int(w * 0.35)
-    left_x_top = int(w * 0.42)
+    left_x_bottom = int(w * 0.46)
+    left_x_top = int(w * 0.48)
     right_x_bottom = int(w * 0.98)
     right_x_top = int(w * 0.65)
 

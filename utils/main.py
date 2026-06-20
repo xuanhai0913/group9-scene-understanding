@@ -750,8 +750,8 @@ try:
                             x1_r, y1_r = pt_right_bottom
                             x2_r, y2_r = pt_right_top
                         else:
-                            x1_l, y1_l = int(w * 0.35), int(h * 0.95)
-                            x2_l, y2_l = int(w * 0.42), int(h * 0.55)
+                            x1_l, y1_l = int(w * 0.46), int(h * 0.95)
+                            x2_l, y2_l = int(w * 0.48), int(h * 0.55)
                             x1_r, y1_r = int(w * 0.98), int(h * 0.95)
                             x2_r, y2_r = int(w * 0.65), int(h * 0.55)
                             
@@ -800,8 +800,8 @@ try:
                                     ego_poly_orig = np.array([pt_left_bottom, pt_left_top, pt_right_top, pt_right_bottom], dtype=np.int32)
                                 else:
                                     ego_poly_orig = np.array([
-                                        (int(w * 0.35), int(h * 0.95)),
-                                        (int(w * 0.42), int(h * 0.55)),
+                                        (int(w * 0.46), int(h * 0.95)),
+                                        (int(w * 0.48), int(h * 0.55)),
                                         (int(w * 0.65), int(h * 0.55)),
                                         (int(w * 0.98), int(h * 0.95))
                                     ], dtype=np.int32)
@@ -919,8 +919,8 @@ try:
                     cv2.putText(output_frame, "LANE SEPARATOR", (disp_pt_left_top[0] - int(10 * (disp_w / 640.0)), disp_pt_left_top[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, annot_scale, (0, 255, 255), annot_thickness, cv2.LINE_AA)
                 else:
                     lane_pts_disp = np.array([
-                        (int(disp_w * 0.35), int(disp_h * 0.95)),
-                        (int(disp_w * 0.42), int(disp_h * 0.55)),
+                        (int(disp_w * 0.46), int(disp_h * 0.95)),
+                        (int(disp_w * 0.48), int(disp_h * 0.55)),
                         (int(disp_w * 0.65), int(disp_h * 0.55)),
                         (int(disp_w * 0.98), int(disp_h * 0.95))
                     ], dtype=np.int32)
