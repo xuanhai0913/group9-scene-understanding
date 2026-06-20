@@ -684,10 +684,13 @@ try:
                     else:
                         print("[AUTO-DETECTION] Khong phat hien xe nguoc chieu. Duy tri che do duong 1 chieu (full_road = True).")
                                         
-            if args.split_road:
+            if args.full_road:
+                is_full_road = True
+            elif args.split_road:
                 is_full_road = False
             else:
-                is_full_road = args.full_road or not getattr(tracker, 'auto_split_road_detected', False)
+                # Mặc định: Giám sát chia làn (chỉ giám sát làn bên phải để mô phỏng lái xe đúng luật)
+                is_full_road = False
             
             if is_full_road:
                 camera_center = (int(disp_w * 0.50), int(disp_h * 0.92))

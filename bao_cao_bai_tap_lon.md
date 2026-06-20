@@ -67,16 +67,12 @@ graph TD
 ### 1. Nhận diện loại đường & Cấu hình hành lang giám sát (Ego Corridor)
 Hệ thống tự động phân loại loại đường dựa trên các đặc điểm nhận biết luật giao thông đường bộ Việt Nam để cấu hình hành lang an toàn động:
 
-*   **Đường 1 chiều:** 
-    *   **Luật giao thông:** Là đường các phương tiện chỉ đi theo một hướng nhất định, phân chia các làn chạy cùng chiều bằng vạch kẻ đường màu trắng.
-    *   **Logic hệ thống:** Khi không phát hiện vạch kẻ đường màu vàng hoặc xe đi ngược chiều, hệ thống tự động kích hoạt chế độ đường 1 chiều (`is_full_road = True`).
-    *   **Hành lang giám sát:** Quét toàn bộ chiều rộng mặt đường (từ 15% đến 90% chiều rộng ảnh). Vị trí xe mình `camera_center` đặt ở chính giữa đáy ảnh: `(0.50 * w, 0.92 * h)`. Chế độ này giúp theo dõi tất cả các xe đi cùng chiều có nguy cơ phanh gấp ở mọi làn.
-*   **Đường 2 chiều:** 
-    *   **Luật giao thông:** Các phương tiện di chuyển theo hai hướng ngược nhau và được phân tách bằng vạch kẻ đường màu vàng ở chính giữa.
-    *   **Logic hệ thống:** Tự động phát hiện vạch màu vàng bằng bộ lọc màu HSV vùng trung tâm `cv2.inRange(hsv, [15, 80, 100], [30, 255, 255])` hoặc theo dõi chuyển động của xe ngược chiều ở làn trái. Khi phát hiện, hệ thống tự động chuyển sang chế độ đường 2 chiều (`is_full_road = False`).
-    *   **Hành lang giám sát:** Thu hẹp hành lang an toàn chỉ nằm ở làn bên phải của bạn. Vị trí xe mình `camera_center` dịch chuyển lệch sang bên phải: `(0.70 * w, 0.92 * h)`. Các xe đi ngược chiều ở làn bên trái sẽ bị loại bỏ khỏi cảnh báo để tránh báo động giả.
-*   **Chế độ giám sát chia làn thủ công (`--split_road`):**
-    *   Hỗ trợ cấu hình ép buộc giám sát chia làn (chỉ quan sát làn bên phải) khi chạy các video từ camera giám sát cố định (CCTV) trên cao để tránh cảnh báo nhầm các xe đi ở làn bên cạnh.
+*   **Chế độ Giám sát chia làn (Mặc định - Split Road Mode):**
+    *   **Logic hệ thống:** Để giả lập hành vi lái xe đúng luật và đảm bảo an toàn tối đa cho xe EGO di chuyển đúng làn đường của mình, hệ thống mặc định chạy ở chế độ **Giám sát chia làn** (`is_full_road = False`).
+    *   **Hành lang giám sát:** Thu hẹp hành lang an toàn chỉ nằm ở nửa bên phải mặt đường (làn của xe mình). Vị trí xe mình `camera_center` dịch chuyển lệch sang bên phải: `(0.70 * w, 0.92 * h)`. Các xe di chuyển ở làn bên trái (xe ngược chiều hoặc xe đi song song cùng chiều) sẽ bị loại bỏ khỏi vùng cảnh báo trực tiếp nhằm giảm tối đa các báo động giả (False Alarms).
+*   **Chế độ Giám sát toàn bộ mặt đường (`--full_road`):**
+    *   **Logic hệ thống:** Khi chạy lệnh với cờ `--full_road`, hệ thống sẽ ép buộc kích hoạt chế độ quét toàn bộ mặt đường.
+    *   **Hành lang giám sát:** Quét toàn bộ chiều rộng mặt đường (từ 15% đến 90% chiều rộng ảnh). Vị trí xe mình `camera_center` đặt ở chính giữa đáy ảnh: `(0.50 * w, 0.92 * h)`. Chế độ này phù hợp khi cần giám sát tất cả các làn xe chạy cùng chiều trên đường 1 chiều hoặc đại lộ lớn rộng nhiều làn.
 
 ### 2. Ước lượng khoảng cách & Cảnh báo va chạm đa hướng
 Khoảng cách thực tế (mét) từ camera đến chướng ngại vật được ước lượng tuyến tính thông qua giá trị độ sâu của MiDaS:
