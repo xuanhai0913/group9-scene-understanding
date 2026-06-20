@@ -737,10 +737,10 @@ try:
                     
                     if is_full_road:
                         ego_poly_orig = np.array([
-                            (int(w * 0.15), int(h * 0.95)),
-                            (int(w * 0.40), int(h * 0.55)),
-                            (int(w * 0.65), int(h * 0.55)),
-                            (int(w * 0.90), int(h * 0.95))
+                            (int(w * 0.02), int(h * 0.95)),
+                            (int(w * 0.30), int(h * 0.55)),
+                            (int(w * 0.70), int(h * 0.55)),
+                            (int(w * 0.98), int(h * 0.95))
                         ], dtype=np.int32)
                         is_in_lane = (cv2.pointPolygonTest(ego_poly_orig, (x_center_orig, y_center_orig), False) >= 0)
                     else:
@@ -750,10 +750,10 @@ try:
                             x1_r, y1_r = pt_right_bottom
                             x2_r, y2_r = pt_right_top
                         else:
-                            x1_l, y1_l = int(w * 0.46), int(h * 0.95)
-                            x2_l, y2_l = int(w * 0.48), int(h * 0.55)
-                            x1_r, y1_r = int(w * 0.95), int(h * 0.95)
-                            x2_r, y2_r = int(w * 0.62), int(h * 0.55)
+                            x1_l, y1_l = int(w * 0.35), int(h * 0.95)
+                            x2_l, y2_l = int(w * 0.42), int(h * 0.55)
+                            x1_r, y1_r = int(w * 0.98), int(h * 0.95)
+                            x2_r, y2_r = int(w * 0.65), int(h * 0.55)
                             
                         if abs(y1_l - y2_l) > 0:
                             x_div_left = x2_l + (y_center_orig - y2_l) * (x1_l - x2_l) / (y1_l - y2_l)
@@ -800,10 +800,10 @@ try:
                                     ego_poly_orig = np.array([pt_left_bottom, pt_left_top, pt_right_top, pt_right_bottom], dtype=np.int32)
                                 else:
                                     ego_poly_orig = np.array([
-                                        (int(w * 0.38), int(h * 0.95)),
-                                        (int(w * 0.46), int(h * 0.55)),
-                                        (int(w * 0.62), int(h * 0.55)),
-                                        (int(w * 0.92), int(h * 0.95))
+                                        (int(w * 0.35), int(h * 0.95)),
+                                        (int(w * 0.42), int(h * 0.55)),
+                                        (int(w * 0.65), int(h * 0.55)),
+                                        (int(w * 0.98), int(h * 0.95))
                                     ], dtype=np.int32)
                                 
                                 dist_to_lane = abs(cv2.pointPolygonTest(ego_poly_orig, (x_center_orig, ymax_orig), True))
@@ -863,10 +863,10 @@ try:
 
             if is_full_road:
                 disp_ego_poly = np.array([
-                    (int(disp_w * 0.15), int(disp_h * 0.95)),
-                    (int(disp_w * 0.40), int(disp_h * 0.55)),
-                    (int(disp_w * 0.65), int(disp_h * 0.55)),
-                    (int(disp_w * 0.90), int(disp_h * 0.95))
+                    (int(disp_w * 0.02), int(disp_h * 0.95)),
+                    (int(disp_w * 0.30), int(disp_h * 0.55)),
+                    (int(disp_w * 0.70), int(disp_h * 0.55)),
+                    (int(disp_w * 0.98), int(disp_h * 0.95))
                 ], dtype=np.int32)
                 
                 # Fill poly only on road pixels
@@ -919,10 +919,10 @@ try:
                     cv2.putText(output_frame, "LANE SEPARATOR", (disp_pt_left_top[0] - int(10 * (disp_w / 640.0)), disp_pt_left_top[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, annot_scale, (0, 255, 255), annot_thickness, cv2.LINE_AA)
                 else:
                     lane_pts_disp = np.array([
-                        (int(disp_w * 0.38), int(disp_h * 0.95)),
-                        (int(disp_w * 0.46), int(disp_h * 0.55)),
-                        (int(disp_w * 0.62), int(disp_h * 0.55)),
-                        (int(disp_w * 0.92), int(disp_h * 0.95))
+                        (int(disp_w * 0.35), int(disp_h * 0.95)),
+                        (int(disp_w * 0.42), int(disp_h * 0.55)),
+                        (int(disp_w * 0.65), int(disp_h * 0.55)),
+                        (int(disp_w * 0.98), int(disp_h * 0.95))
                     ], dtype=np.int32)
                     
                     poly_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
