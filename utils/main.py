@@ -672,7 +672,11 @@ try:
                         
                         left_strip = seg_mask_full[y1_div:y2_div, x1_div:x2_div]
                         if left_strip.size > 0:
-                            divider_pixels = np.sum((left_strip == 4) | (left_strip == 2))
+                            road_class_idx = 0 if (unet_model is not None and getattr(unet_model, "num_classes", 8) == 4) else 1
+                            sky_class_idx = 1 if (unet_model is not None and getattr(unet_model, "num_classes", 8) == 4) else 5
+                            
+                            # Tính số điểm không phải là đường và bầu trời (tức là dải phân cách cứng, vỉa hè hoặc cây cỏ)
+                            divider_pixels = np.sum((left_strip != road_class_idx) & (left_strip != sky_class_idx))
                             if divider_pixels > (left_strip.size * 0.15):
                                 tracker.divider_check_count += 1
                     except Exception:
