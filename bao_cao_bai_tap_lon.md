@@ -67,12 +67,13 @@ graph TD
 ### 1. Nhận diện loại đường & Cấu hình hành lang giám sát (Ego Corridor)
 Hệ thống tự động phân loại loại đường dựa trên các đặc điểm nhận biết luật giao thông đường bộ Việt Nam để cấu hình hành lang an toàn động:
 
-*   **Chế độ Giám sát chia làn (Mặc định - Split Road Mode):**
-    *   **Logic hệ thống:** Để giả lập hành vi lái xe đúng luật và đảm bảo an toàn tối đa cho xe EGO di chuyển đúng làn đường của mình, hệ thống mặc định chạy ở chế độ **Giám sát chia làn** (`is_full_road = False`).
-    *   **Hành lang giám sát:** Thu hẹp hành lang an toàn chỉ nằm ở nửa bên phải mặt đường (làn của xe mình). Vị trí xe mình `camera_center` dịch chuyển lệch sang bên phải: `(0.70 * w, 0.92 * h)`. Các xe di chuyển ở làn bên trái (xe ngược chiều hoặc xe đi song song cùng chiều) sẽ bị loại bỏ khỏi vùng cảnh báo trực tiếp nhằm giảm tối đa các báo động giả (False Alarms).
-*   **Chế độ Giám sát toàn bộ mặt đường (`--full_road`):**
-    *   **Logic hệ thống:** Khi chạy lệnh với cờ `--full_road`, hệ thống sẽ ép buộc kích hoạt chế độ quét toàn bộ mặt đường.
-    *   **Hành lang giám sát:** Quét toàn bộ chiều rộng mặt đường (từ 15% đến 90% chiều rộng ảnh). Vị trí xe mình `camera_center` đặt ở chính giữa đáy ảnh: `(0.50 * w, 0.92 * h)`. Chế độ này phù hợp khi cần giám sát tất cả các làn xe chạy cùng chiều trên đường 1 chiều hoặc đại lộ lớn rộng nhiều làn.
+*   **Chế độ Tự động nhận diện (Mặc định - Auto-Detection Mode):**
+    *   **Logic hệ thống:** Hệ thống tự động phân tích video để xác định loại đường:
+        *   *Nếu phát hiện vạch màu vàng chia làn hoặc xe ngược chiều:* Tự động chuyển sang chế độ **Giám sát chia làn** (`is_full_road = False`), giới hạn hành lang màu xanh lá ở làn bên phải và dịch chuyển tâm `camera_center` sang phải: `(0.70 * w, 0.92 * h)` để tránh cảnh báo nhầm các xe đi ngược chiều hoặc đi song song bên trái.
+        *   *Nếu không phát hiện dấu hiệu đường 2 chiều:* Hệ thống duy trì chế độ **Giám sát toàn bộ mặt đường** (`is_full_road = True`) phù hợp cho đường 1 chiều, đặt tâm `camera_center` ở chính giữa đáy ảnh: `(0.50 * w, 0.92 * h)`.
+*   **Chế độ Cấu hình thủ công (Manual Override):**
+    *   **Ép buộc quét toàn đường (`--full_road`):** Ép buộc hệ thống chạy ở chế độ quét toàn bộ mặt đường (`is_full_road = True`), bỏ qua kết quả nhận diện tự động.
+    *   **Ép buộc quét chia làn (`--split_road`):** Ép buộc hệ thống chạy ở chế độ chia làn (`is_full_road = False`), bỏ qua kết quả nhận diện tự động (rất hữu ích cho góc quay camera CCTV cố định trên cao).
 
 ### 2. Ước lượng khoảng cách & Cảnh báo va chạm đa hướng
 Khoảng cách thực tế (mét) từ camera đến chướng ngại vật được ước lượng tuyến tính thông qua giá trị độ sâu của MiDaS:

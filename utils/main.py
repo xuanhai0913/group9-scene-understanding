@@ -689,8 +689,8 @@ try:
             elif args.split_road:
                 is_full_road = False
             else:
-                # Mặc định: Giám sát chia làn (chỉ giám sát làn bên phải để mô phỏng lái xe đúng luật)
-                is_full_road = False
+                # Mặc định: Tự động nhận diện loại đường dựa vào kết quả quét vạch vàng/xe ngược chiều
+                is_full_road = not getattr(tracker, 'auto_split_road_detected', False)
             
             if is_full_road:
                 camera_center = (int(disp_w * 0.50), int(disp_h * 0.92))
