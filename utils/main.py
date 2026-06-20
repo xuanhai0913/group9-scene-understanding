@@ -745,12 +745,12 @@ try:
                     road_class_idx = 0 if (unet_model is not None and getattr(unet_model, "num_classes", 8) == 4) else 1
                     # Fallback: if road mask in seg_mask_full is too empty, bypass the road constraint to remain robust
                     if np.sum(seg_mask_full == road_class_idx) >= (w * h * 0.05):
-                        y_bottom = min(h - 1, max(0, ymax_orig))
-                        x_center_chk = min(w - 1, max(0, x_center_orig))
-                        y_start = max(0, y_bottom - 15)
-                        y_end = min(h, y_bottom + 5)
-                        x_start = max(0, x_center_chk - 10)
-                        x_end = min(w, x_center_chk + 10)
+                        y_bottom = int(min(h - 1, max(0, ymax_orig)))
+                        x_center_chk = int(min(w - 1, max(0, x_center_orig)))
+                        y_start = int(max(0, y_bottom - 15))
+                        y_end = int(min(h, y_bottom + 5))
+                        x_start = int(max(0, x_center_chk - 10))
+                        x_end = int(min(w, x_center_chk + 10))
                         region = seg_mask_full[y_start:y_end, x_start:x_end]
                         is_on_road = np.any(region == road_class_idx)
                         is_in_lane = is_in_lane and is_on_road
