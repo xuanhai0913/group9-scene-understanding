@@ -21,7 +21,7 @@ from MidasDepthEstimation.midasDepthEstimator import midasDepthEstimator as Mida
 from utils.utils import load_train_config
 from utils.fusion import filter_detections, fuse_detections_and_segmentation
 
-def process_single_image(image_path, unet_model, detection_model, depth_estimator, device, resize_dim, output_dir):
+def process_single_image(image_path, unet_model, detection_model, depth_estimator, device, resize_dim, output_dir, base_threshold=-2.5):
     print(f"\n[INFO] Dang xu ly anh: {image_path}")
     frame = cv2.imread(image_path)
     if frame is None:
@@ -55,7 +55,7 @@ def process_single_image(image_path, unet_model, detection_model, depth_estimato
     with torch.no_grad():
         seg_output = unet_model(seg_tensor)
         if seg_output.shape[1] == 1:
-            seg_mask = (torch.sigmoid(seg_output) > 0.5).long().squeeze(0).squeeze(0).cpu().numpy()
+            seg_mask = (seg_output > base_threshold).long().squeeze(0).squeeze(0).cpu().numpy()
         else:
             seg_mask = torch.argmax(seg_output, dim=1).squeeze(0).cpu().numpy()
 
@@ -63,12 +63,20 @@ def process_single_image(image_path, unet_model, detection_model, depth_estimato
 
     # Tạo mặt nạ đen trắng mặt đường
     seg_mask_image = np.zeros((orig_h, orig_w), dtype=np.uint8)
-    seg_mask_image[seg_mask_unet == 1] = 255
+    if getattr(unet_model, "num_classes", 1) == 4:
+        seg_mask_image[seg_mask_unet == 0] = 255
+    else:
+        seg_mask_image[seg_mask_unet == 1] = 255
     cv2.imwrite(os.path.join(img_out_dir, "3_segmentation_mask.png"), seg_mask_image)
 
-    # Phủ màu tím lên mặt đường (BGR: 128, 64, 128)
+    # Phủ màu tím lên mặt đường (BGR: 128, 64, 128) hoặc vẽ đa lớp
     color_mask = np.zeros_like(frame)
-    color_mask[seg_mask_unet == 1] = (128, 64, 128)
+    if getattr(unet_model, "num_classes", 1) == 4:
+        color_mask[seg_mask_unet == 0] = (128, 64, 128) # Road (Purple)
+        color_mask[seg_mask_unet == 1] = (180, 130, 70)  # Sky (Sky Blue)
+        color_mask[seg_mask_unet == 2] = (0, 0, 255)      # Vehicle (Red)
+    else:
+        color_mask[seg_mask_unet == 1] = (128, 64, 128)
     seg_overlay = cv2.addWeighted(frame, 0.7, color_mask, 0.3, 0)
     cv2.imwrite(os.path.join(img_out_dir, "4_segmentation_overlay.png"), seg_overlay)
 
@@ -238,14 +246,20 @@ def process_single_image(image_path, unet_model, detection_model, depth_estimato
         for class_idx, name in class_names.items():
             if class_idx == 1:
                 # Class 1: Drivable road từ U-Net
-                mask = (seg_mask_unet == 1)
+                if getattr(unet_model, "num_classes", 1) == 4:
+                    mask = (seg_mask_unet == 0)
+                else:
+                    mask = (seg_mask_unet == 1)
             elif class_idx == 7:
                 # Tìm vùng của các xe phát hiện được
-                mask = np.zeros_like(seg_mask_unet, dtype=bool)
-                for obs in detected_obstacles:
-                    if obs.get('type') == 'vehicle':
-                        xmin, ymin, xmax, ymax = obs['box']
-                        mask[ymin:ymax, xmin:xmax] = True
+                if getattr(unet_model, "num_classes", 1) == 4:
+                    mask = (seg_mask_unet == 2)
+                else:
+                    mask = np.zeros_like(seg_mask_unet, dtype=bool)
+                    for obs in detected_obstacles:
+                        if obs.get('type') == 'vehicle':
+                            xmin, ymin, xmax, ymax = obs['box']
+                            mask[ymin:ymax, xmin:xmax] = True
             elif class_idx == 6:
                 # Người đi bộ
                 mask = np.zeros_like(seg_mask_unet, dtype=bool)
@@ -257,7 +271,10 @@ def process_single_image(image_path, unet_model, detection_model, depth_estimato
                 # Các class khác trong ảnh tĩnh (mô phỏng theo vị trí ước lượng)
                 mask = np.zeros_like(seg_mask_unet, dtype=bool)
                 if class_idx == 5: # Sky ở phía trên
-                    mask[0:int(orig_h*0.4), :] = True
+                    if getattr(unet_model, "num_classes", 1) == 4:
+                        mask = (seg_mask_unet == 1)
+                    else:
+                        mask[0:int(orig_h*0.4), :] = True
                 elif class_idx == 4: # Trees ở 2 bên rìa
                     mask[int(orig_h*0.3):int(orig_h*0.8), 0:int(orig_w*0.15)] = True
                     mask[int(orig_h*0.3):int(orig_h*0.8), int(orig_w*0.85):] = True
@@ -313,11 +330,25 @@ def main():
         print("[ERROR] Khong tim thay anh mau nao de xu ly. Vui long kiem tra thu muc data/kitti/training/image_2 hoac truyen --image_path.")
         return
 
-    # 3. Nạp mô hình U-Net
-    unet_weights_path = "weights/UNET_resnet18_road/best_model.pth"
-    if not os.path.exists(unet_weights_path):
-        unet_weights_path = "weights/unet_best.pth"
-        
+    # 3. Nạp cấu hình từ train_config.yaml
+    config_path = "config/train_config.yaml"
+    unet_weights_path = "weights/UNET_resnet50_road/best_model.pth"
+    backbone = "resnet50"
+    resize_dim = (640, 192)
+    base_threshold = -2.5
+    if os.path.exists(config_path):
+        try:
+            config = load_train_config(config_path)
+            cfg_resize = config.get("DATASET", {}).get("resize", [])
+            if cfg_resize and len(cfg_resize) == 2:
+                resize_dim = (cfg_resize[1], cfg_resize[0])
+            unet_weights_path = config.get("EVAL", {}).get("model_path", unet_weights_path)
+            backbone = config.get("MODEL", {}).get("backbone", backbone)
+            base_threshold = config.get("EVAL", {}).get("base_threshold", base_threshold)
+        except Exception as e:
+            print(f"[WARNING] Loi doc train_config.yaml: {e}")
+
+    # 3.5 Nạp mô hình U-Net
     if os.path.exists(unet_weights_path):
         state = torch.load(unet_weights_path, map_location=device, weights_only=False)
         state_dict = state.get("state_dict", state)
@@ -325,7 +356,7 @@ def main():
         if "final.weight" in state_dict:
             num_classes = state_dict["final.weight"].shape[0]
             
-        unet_model = Unet(num_classes=num_classes, encoder_name="resnet18" if "resnet18" in unet_weights_path else "resnext50").to(device)
+        unet_model = Unet(num_classes=num_classes, encoder_name=backbone).to(device)
         unet_model.load_state_dict(state_dict)
         unet_model.eval()
         print(f"[INFO] Da nap thanh cong mo hinh U-Net tu: {unet_weights_path}")
@@ -347,21 +378,9 @@ def main():
     print("[INFO] Dang nap mo hinh MiDaS...")
     depth_estimator = MidasDepthEstimator()
 
-    # 6. Cấu hình resize
-    config_path = "config/train_config.yaml"
-    resize_dim = (640, 192)
-    if os.path.exists(config_path):
-        try:
-            config = load_train_config(config_path)
-            cfg_resize = config.get("DATASET", {}).get("resize", [])
-            if cfg_resize and len(cfg_resize) == 2:
-                resize_dim = (cfg_resize[1], cfg_resize[0])
-        except Exception as e:
-            print(f"[WARNING] Loi doc train_config.yaml: {e}")
-
     # 7. Xử lý danh sách ảnh
     for img_path in input_images:
-        process_single_image(img_path, unet_model, detection_model, depth_estimator, device, resize_dim, args.output_dir)
+        process_single_image(img_path, unet_model, detection_model, depth_estimator, device, resize_dim, args.output_dir, base_threshold)
 
     print(f"\n[SUCCESS] Hoan thanh chay demo tren {len(input_images)} anh! Ket qua luu tai: {args.output_dir}")
 

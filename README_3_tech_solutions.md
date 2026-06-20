@@ -5,7 +5,7 @@ Tài liệu này giới thiệu kiến trúc các mô hình học máy và thư 
 ---
 
 ## 1. Mô hình phân đoạn làn đường (Road Segmentation Model)
-*   **Mạng nơ-ron:** Sử dụng kiến trúc **U-Net** cải tiến kết hợp với bộ mã hóa (Backbone) là mạng **ResNeXt-50** đã huấn luyện sẵn.
+*   **Mạng nơ-ron:** Sử dụng kiến trúc **U-Net** cải tiến kết hợp với bộ mã hóa (Backbone) là mạng **ResNet-50** đã huấn luyện sẵn.
 *   **Dataset:** Mô hình được tinh chỉnh và huấn luyện trên bộ dữ liệu **KITTI Road Dataset**.
 *   **Tối ưu hóa:** Loại bỏ Test Time Augmentation (TTA) để tăng tốc độ suy luận gấp 1.5 lần và áp dụng kỹ thuật tinh chỉnh ngưỡng quyết định (Threshold Tuning) đạt hiệu năng tối ưu trên CPU.
 
@@ -14,7 +14,7 @@ Tài liệu này giới thiệu kiến trúc các mô hình học máy và thư 
 *   **Đặc điểm:** Cho phép tính toán chiều sâu từ 1 ảnh camera hành trình duy nhất mà không cần camera stereo hay cảm biến Lidar đắt tiền.
 
 ## 3. Mô hình phát hiện vật thể (Object Detection Model)
-*   **Mạng nơ-ron:** Sử dụng bộ phát hiện vật thể dạng một giai đoạn (Single-stage) hiệu năng cao **YOLO** để khoanh vùng các hộp bao phương tiện (xe hơi, xe máy, xe bus, v.v.).
+*   **Mạng nơ-ron:** Sử dụng bộ phát hiện vật thể **Faster R-CNN** (với backbone **MobileNetV3-Large** hoặc **ResNet50 FPN**) để khoanh vùng các hộp bao phương tiện (xe hơi, xe máy, xe bus, v.v.).
 *   **Theo dõi:** Sử dụng bộ lọc Kalman Filter kết hợp IoU Tracker để theo dõi phương tiện ổn định qua các khung hình liên tục.
 
 ## 4. Công nghệ triển khai hệ thống

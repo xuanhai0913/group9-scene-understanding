@@ -63,6 +63,8 @@ parser.add_argument('--video_path', type=str, default="", help="Duong dan den fi
 parser.add_argument('--high_acc', action='store_true', help="Su dung mo hinh nhan dien SSD300 VGG16 do chinh xac cao")
 parser.add_argument('--full_road', action='store_true', help="Giam sat va canh bao va cham tren toan bo long duong (khong chia lan)")
 parser.add_argument('--skip_frames', type=int, default=1, help="Chi xu ly moi khung hinh thu N de tang toc tren CPU (skip_frames >= 1)")
+parser.add_argument('--save_video', type=str, default="", help="Duong dan de ghi video dau ra (vd: output.mp4)")
+parser.add_argument('--headless', action='store_true', help="Chay khong can hien thi giao dien (rat huu ich tren Google Colab)")
 args = parser.parse_args()
 
 video_path = args.video_path
@@ -90,22 +92,30 @@ CLASS_COLORS = [
 
 # 1. KHOI TAO MO HINH SEMANTIC SEGMENTATION (U-Net)
 # Chuyen sang dung weights thuc cho "road" (toan bo mat duong) thay vi "lane" (chi rieng 1 lan xe)
-unet_weights_path = "weights/UNET_resnet18_road/best_model.pth"
+unet_weights_path = "weights/UNET_resnet50_road/best_model.pth"
 use_fallback_detection = False
 detection_model = None
 
+# Đặt biến cờ để bật/tắt mô hình Object Detection (Faster R-CNN)
+# Đặt thành False để chạy nhẹ và mượt trên CPU, đặt thành True nếu muốn tải thêm Faster R-CNN
+ENABLE_DETECTION = True
+
 # Doc ten backbone va kich thuoc resize tu file train_config.yaml de khoi tao va chay cho khop
 config_path = "config/train_config.yaml"
-backbone = "resnext50" # Default
+backbone = "resnet50" # Default
 resize_dim = (640, 192) # Default width, height (from [192, 640])
+base_threshold = -2.5 # Default
 if os.path.exists(config_path):
     try:
         config = load_train_config(config_path)
-        backbone = config.get("MODEL", {}).get("backbone", "resnext50")
+        backbone = config.get("MODEL", {}).get("backbone", "resnet50")
         cfg_resize = config.get("DATASET", {}).get("resize", [])
         if cfg_resize and len(cfg_resize) == 2:
             # config uses [height, width], cv2.resize uses (width, height)
             resize_dim = (cfg_resize[1], cfg_resize[0])
+        # Đọc động đường dẫn weights từ config
+        unet_weights_path = config.get("EVAL", {}).get("model_path", unet_weights_path)
+        base_threshold = config.get("EVAL", {}).get("base_threshold", base_threshold)
     except:
         pass
 
@@ -117,6 +127,15 @@ if os.path.exists(unet_weights_path):
     num_classes = 8  # Default
     if "final.weight" in state_dict:
         num_classes = state_dict["final.weight"].shape[0]
+        
+    if num_classes == 4:
+        print("[INFO] Da nap mo hinh phan doan da lop (4 lop: Road, Sky, Car, Background).")
+        CLASS_COLORS = [
+            (128, 64, 128),     # 0: Road (Tim)
+            (180, 130, 70),     # 1: Sky (Xanh lam)
+            (0, 0, 255),        # 2: Car (Do)
+            (0, 0, 0)           # 3: Background (Den)
+        ]
         
     backbone_candidates = [backbone, "resnext50", "resnet18", "resnet34", "resnet50"]
     loaded = False
@@ -140,20 +159,52 @@ if os.path.exists(unet_weights_path):
     unet_model.eval()
     
     if num_classes == 1:
-        print("[INFO] Day la mo hinh phan doan duong nhi phan (1 lop). Nap mo hinh object detection de phat hien phuong tien...")
+        if ENABLE_DETECTION:
+            print("[INFO] Day la mo hinh phan doan duong nhi phan (1 lop). Nap mo hinh object detection de phat hien phuong tien...")
+            if args.high_acc:
+                try:
+                    from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
+                    detection_model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(device)
+                    print("[INFO] Da nap Faster R-CNN ResNet50 FPN do chinh xac cao.")
+                except Exception as e:
+                    try:
+                        from torchvision.models.detection import ssd300_vgg16, SSD300_VGG16_Weights
+                        detection_model = ssd300_vgg16(weights=SSD300_VGG16_Weights.DEFAULT).to(device)
+                    except Exception as e2:
+                        from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
+                        detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
+            else:
+                try:
+                    from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
+                    detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
+                except:
+                    from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn
+                    detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(pretrained=True).to(device)
+            detection_model.eval()
+        else:
+            print("[INFO] Day la mo hinh nhi phan. Bo qua nap Faster R-CNN theo thiet lap ENABLE_DETECTION = False.")
+else:
+    unet_model = Unet(num_classes=8, encoder_name=backbone).to(device)
+    print(f"[WARNING] Chua co file trong so {unet_weights_path} trong thu muc 'weights'.")
+    print("[WARNING] He thong se tu dong kich hoat Che do Mo phong Thong minh (Simulated Demo Mode) de minh hoa BTL.")
+    use_fallback_detection = True
+    
+    if ENABLE_DETECTION:
         if args.high_acc:
+            print("[INFO] Dang nap mo hinh nhan dien do chinh xac cao Faster R-CNN ResNet50 FPN (Co the chay cham hon tren CPU)...")
             try:
                 from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
                 detection_model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(device)
-                print("[INFO] Da nap Faster R-CNN ResNet50 FPN do chinh xac cao.")
             except Exception as e:
                 try:
                     from torchvision.models.detection import ssd300_vgg16, SSD300_VGG16_Weights
                     detection_model = ssd300_vgg16(weights=SSD300_VGG16_Weights.DEFAULT).to(device)
                 except Exception as e2:
+                    print(f"[ERROR] Loi khi nap model high_acc: {e2}. Quay lai Faster RCNN MobileNet.")
                     from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
                     detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
         else:
+            print("[INFO] Dang nap mo hinh nhan dien thoi gian thuc Faster RCNN MobileNet...")
             try:
                 from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
                 detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
@@ -161,34 +212,8 @@ if os.path.exists(unet_weights_path):
                 from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn
                 detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(pretrained=True).to(device)
         detection_model.eval()
-else:
-    unet_model = Unet(num_classes=8, encoder_name=backbone).to(device)
-    print("[WARNING] Chua co file trong so unet_best.pth trong thu muc 'weights'.")
-    print("[WARNING] He thong se tu dong kich hoat Che do Mo phong Thong minh (Simulated Demo Mode) de minh hoa BTL.")
-    use_fallback_detection = True
-    
-    if args.high_acc:
-        print("[INFO] Dang nap mo hinh nhan dien do chinh xac cao Faster R-CNN ResNet50 FPN (Co the chay cham hon tren CPU)...")
-        try:
-            from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
-            detection_model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(device)
-        except Exception as e:
-            try:
-                from torchvision.models.detection import ssd300_vgg16, SSD300_VGG16_Weights
-                detection_model = ssd300_vgg16(weights=SSD300_VGG16_Weights.DEFAULT).to(device)
-            except Exception as e2:
-                print(f"[ERROR] Loi khi nap model high_acc: {e2}. Quay lai Faster RCNN MobileNet.")
-                from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-                detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
     else:
-        print("[INFO] Dang nap mo hinh nhan dien thoi gian thuc Faster RCNN MobileNet...")
-        try:
-            from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-            detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
-        except:
-            from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn
-            detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(pretrained=True).to(device)
-    detection_model.eval()
+        print("[INFO] Che do Mo phong. Bo qua nap Faster R-CNN theo thiet lap ENABLE_DETECTION = False.")
 
 # 2. KHOI TAO MO HINH DEPTH ESTIMATION (MiDaS TFLite cua ibaiGorordo)
 try:
@@ -235,7 +260,8 @@ unet_transform = transforms.Compose([
 print("[INFO] Dang phan tich luong du lieu... Nhan phim 'q' tai man hinh hien thi de thoat.")
 
 window_name = "BTL Image Processing - Traffic Scene Understanding Pipeline"
-cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+if not args.headless:
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
 disp_w = None
 disp_h = None
@@ -248,7 +274,7 @@ tracker = Tracker()
 
 
 class InferenceThread(threading.Thread):
-    def __init__(self, input_queue, output_queue, reader_thread, unet_model, detection_model, depth_estimator, device, resize_dim, use_fallback_detection, unet_transform, is_midas_demo, CLASS_COLORS, args):
+    def __init__(self, input_queue, output_queue, reader_thread, unet_model, detection_model, depth_estimator, device, resize_dim, use_fallback_detection, unet_transform, is_midas_demo, CLASS_COLORS, args, base_threshold):
         super().__init__()
         self.input_queue = input_queue
         self.output_queue = output_queue
@@ -263,6 +289,7 @@ class InferenceThread(threading.Thread):
         self.is_midas_demo = is_midas_demo
         self.CLASS_COLORS = CLASS_COLORS
         self.args = args
+        self.base_threshold = base_threshold
         self.stopped = False
         self.daemon = True
 
@@ -355,7 +382,7 @@ class InferenceThread(threading.Thread):
                     with torch.no_grad():
                         seg_output = self.unet_model(seg_tensor)
                         if seg_output.shape[1] == 1:
-                            seg_mask = (torch.sigmoid(seg_output) > 0.5).long().squeeze(0).squeeze(0).cpu().numpy()
+                            seg_mask = (seg_output > self.base_threshold).long().squeeze(0).squeeze(0).cpu().numpy()
                         else:
                             seg_mask = torch.argmax(seg_output, dim=1).squeeze(0).cpu().numpy()
 
@@ -427,15 +454,16 @@ class InferenceThread(threading.Thread):
                             cv2.rectangle(color_mask, (xmin, ymin), (xmax, ymax), (153, 153, 153), -1)
                             seg_mask_full[ymin:ymax, xmin:xmax] = 3
                 else:
-                    for det in fused_obstacles:
-                        xmin, ymin, xmax, ymax = det['box']
-                        obs_type = det['type']
-                        if obs_type == 'vehicle':
-                            seg_mask_full[ymin:ymax, xmin:xmax] = 7
-                        elif obs_type == 'human':
-                            seg_mask_full[ymin:ymax, xmin:xmax] = 6
-                        elif obs_type in ['traffic light', 'stop sign']:
-                            seg_mask_full[ymin:ymax, xmin:xmax] = 3
+                    if getattr(self.unet_model, "num_classes", 8) != 4:
+                        for det in fused_obstacles:
+                            xmin, ymin, xmax, ymax = det['box']
+                            obs_type = det['type']
+                            if obs_type == 'vehicle':
+                                seg_mask_full[ymin:ymax, xmin:xmax] = 7
+                            elif obs_type == 'human':
+                                seg_mask_full[ymin:ymax, xmin:xmax] = 6
+                            elif obs_type in ['traffic light', 'stop sign']:
+                                seg_mask_full[ymin:ymax, xmin:xmax] = 3
                     
                     color_mask = np.zeros_like(frame)
                     for class_idx, color in enumerate(self.CLASS_COLORS):
@@ -489,7 +517,8 @@ inference_thread = InferenceThread(
     unet_transform=unet_transform,
     is_midas_demo=is_midas_demo,
     CLASS_COLORS=CLASS_COLORS,
-    args=args
+    args=args,
+    base_threshold=base_threshold
 )
 inference_thread.start()
 
@@ -502,8 +531,9 @@ try:
             if reader_thread.stopped and reader_thread.queue.empty() and result_queue.empty():
                 break
             # Neu cua so OpenCV dang mo, van can bat ky de tranh cua so bi treo (waitKey)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            if not args.headless:
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
             continue
 
         frame = result['frame']
@@ -539,13 +569,17 @@ try:
                 target_w = int(target_h * orig_w / orig_h)
             
             disp_w, disp_h = target_w, target_h
-            cv2.resizeWindow(window_name, disp_w * 3, disp_h)
+            if not args.headless:
+                cv2.resizeWindow(window_name, disp_w * 3, disp_h)
 
         # Fetch actual window client area dimensions dynamically to adapt to resizing
         try:
-            rect = cv2.getWindowImageRect(window_name)
-            if rect is not None and rect[2] > 100 and rect[3] > 100:
-                win_w, win_h = rect[2], rect[3]
+            if not args.headless:
+                rect = cv2.getWindowImageRect(window_name)
+                if rect is not None and rect[2] > 100 and rect[3] > 100:
+                    win_w, win_h = rect[2], rect[3]
+                else:
+                    win_w, win_h = disp_w * 3, disp_h
             else:
                 win_w, win_h = disp_w * 3, disp_h
         except Exception:
@@ -593,7 +627,7 @@ try:
             active_tracks = tracker.update(detected_obstacles)
             
             # Tự động nhận diện đường 2 chiều (oncoming traffic on the left / yellow lane divider color check)
-            if not args.full_road and not getattr(tracker, 'auto_full_road_detected', False):
+            if not args.full_road and not getattr(tracker, 'auto_split_road_detected', False):
                 if not hasattr(tracker, 'oncoming_hits_count'):
                     tracker.oncoming_hits_count = 0
                     tracker.processed_frames_count = 0
@@ -613,17 +647,18 @@ try:
                         
                         hsv_region = hsv[y1_crop:y2_crop, x1_crop:x2_crop]
                         if hsv_region.size > 0:
-                            mask = cv2.inRange(hsv_region, np.array([5, 40, 80]), np.array([38, 255, 255]))
+                            # Thu hẹp dải màu HSV để phát hiện vạch sơn vàng chuẩn xác hơn, tránh bị nhận diện nhầm do ánh nắng hoặc mặt đường
+                            mask = cv2.inRange(hsv_region, np.array([15, 80, 100]), np.array([30, 255, 255]))
                             yellow_pixels = np.sum(mask > 0)
-                            if yellow_pixels >= 100:
+                            if yellow_pixels >= 150:
                                 tracker.yellow_line_check_count += 1
 
                     except Exception:
                         pass
                     
                     if tracker.yellow_line_check_count >= 5:
-                        tracker.auto_full_road_detected = True
-                        print("[AUTO-DETECTION] Phat hien vach ke duong mau vang (vach phan chia 2 chieu). Tu dong bat che do duong 2 chieu (full_road = True)!")
+                        tracker.auto_split_road_detected = True
+                        print("[AUTO-DETECTION] Phat hien vach ke duong mau vang (vach phan chia 2 chieu). Tu dong bat che do duong 2 chieu (full_road = False)!")
                 
                 # 2. Thuật toán động theo dõi xe ngược chiều ở làn trái (dự phòng)
                 for tid, track in active_tracks.items():
@@ -643,12 +678,12 @@ try:
                 # Quyết định chế độ đường sau 45 khung hình đầu tiên nếu chưa nhận diện được bằng vạch kẻ đường
                 if tracker.processed_frames_count == 45:
                     if tracker.oncoming_hits_count >= 8:
-                        tracker.auto_full_road_detected = True
-                        print("[AUTO-DETECTION] Phat hien xe nguoc chieu tren lan trai. Tu dong bat che do duong 2 chieu (full_road = True)!")
+                        tracker.auto_split_road_detected = True
+                        print("[AUTO-DETECTION] Phat hien xe nguoc chieu tren lan trai. Tu dong bat che do duong 2 chieu (full_road = False)!")
                     else:
-                        print("[AUTO-DETECTION] Khong phat hien xe nguoc chieu. Duy tri che do duong 1 chieu (full_road = False).")
+                        print("[AUTO-DETECTION] Khong phat hien xe nguoc chieu. Duy tri che do duong 1 chieu (full_road = True).")
                                         
-            is_full_road = args.full_road or getattr(tracker, 'auto_full_road_detected', False)
+            is_full_road = args.full_road or not getattr(tracker, 'auto_split_road_detected', False)
             
             if is_full_road:
                 camera_center = (int(disp_w * 0.50), int(disp_h * 0.92))
@@ -959,51 +994,65 @@ try:
         if h_draw > 0 and w_draw > 0:
             canvas[y_offset:y_offset+h_draw, x_offset:x_offset+w_draw] = dashboard[:h_draw, :w_draw]
             
-        cv2.imshow("BTL Image Processing - Traffic Scene Understanding Pipeline", canvas)
-        
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            break
-        elif key == ord('s'):
-            try:
-                cv2.imwrite("original_image.png", frame)
-                if 'depth_colored_full' in locals() and depth_colored_full is not None:
-                    cv2.imwrite("depth_map.png", depth_colored_full)
-                if 'color_mask' in locals() and color_mask is not None:
-                    seg_overlay = cv2.addWeighted(frame, 0.7, color_mask, 0.3, 0)
-                    cv2.imwrite("segmentation_overlay.png", seg_overlay)
-                    cv2.imwrite("segmentation_color_mask.png", color_mask)
-                if 'output_frame' in locals() and output_frame is not None:
-                    cv2.imwrite("fusion_result.png", output_frame)
-                if 'dashboard' in locals() and dashboard is not None:
-                    cv2.imwrite("dashboard_result.png", dashboard)
-                print("\n[INFO] Da chup anh va luu ket qua khung hinh hien tai vao cac file .png thanh cong!")
-            except Exception as e:
-                print(f"\n[ERROR] Khong the luu anh: {e}")
+        if args.save_video and 'video_writer' not in locals():
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            video_writer = cv2.VideoWriter(args.save_video, fourcc, 15.0, (win_w, win_h))
+            print(f"[INFO] Da khoi tao ghi video tai: {args.save_video} voi kich thuoc {win_w}x{win_h}")
+
+        if args.save_video and 'video_writer' in locals() and video_writer is not None:
+            video_writer.write(canvas)
+
+        if not args.headless:
+            cv2.imshow("BTL Image Processing - Traffic Scene Understanding Pipeline", canvas)
+            
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                break
+            elif key == ord('s'):
+                try:
+                    cv2.imwrite("original_image.png", frame)
+                    if 'depth_colored_full' in locals() and depth_colored_full is not None:
+                        cv2.imwrite("depth_map.png", depth_colored_full)
+                    if 'color_mask' in locals() and color_mask is not None:
+                        seg_overlay = cv2.addWeighted(frame, 0.7, color_mask, 0.3, 0)
+                        cv2.imwrite("segmentation_overlay.png", seg_overlay)
+                        cv2.imwrite("segmentation_color_mask.png", color_mask)
+                    if 'output_frame' in locals() and output_frame is not None:
+                        cv2.imwrite("fusion_result.png", output_frame)
+                    if 'dashboard' in locals() and dashboard is not None:
+                        cv2.imwrite("dashboard_result.png", dashboard)
+                    print("\n[INFO] Da chup anh va luu ket qua khung hinh hien tai vao cac file .png thanh cong!")
+                except Exception as e:
+                    print(f"\n[ERROR] Khong the luu anh: {e}")
 
     # Hoi nguoi dung co muon luu lai khung hinh cuoi cung khi thoat khong
-    try:
-        if 'frame' in locals() and frame is not None:
-            print("\n" + "="*70)
-            print("                 LUU ANH KET QUA PHAN TICH KHUNG HINH CUOI CUNG")
-            print("="*70)
-            choice = input("Ban co muon luu lai anh ket qua cua khung hinh cuoi cung khong? (y/n): ").strip().lower()
-            if choice == 'y':
-                cv2.imwrite("original_image.png", frame)
-                if 'depth_colored_full' in locals() and depth_colored_full is not None:
-                    cv2.imwrite("depth_map.png", depth_colored_full)
-                if 'color_mask' in locals() and color_mask is not None:
-                    seg_overlay = cv2.addWeighted(frame, 0.7, color_mask, 0.3, 0)
-                    cv2.imwrite("segmentation_overlay.png", seg_overlay)
-                    cv2.imwrite("segmentation_color_mask.png", color_mask)
-                if 'output_frame' in locals() and output_frame is not None:
-                    cv2.imwrite("fusion_result.png", output_frame)
-                if 'dashboard' in locals() and dashboard is not None:
-                    cv2.imwrite("dashboard_result.png", dashboard)
-                print("[INFO] Da luu thanh cong cac anh ket qua: original_image.png, depth_map.png, segmentation_overlay.png, segmentation_color_mask.png, fusion_result.png, dashboard_result.png")
-            print("="*70)
-    except Exception as e:
-        print(f"[WARNING] Khong the tu dong hoi luu file: {e}")
+    if not args.headless:
+        try:
+            if 'frame' in locals() and frame is not None:
+                print("\n" + "="*70)
+                print("                 LUU ANH KET QUA PHAN TICH KHUNG HINH CUOI CUNG")
+                print("="*70)
+                choice = input("Ban co muon luu lai anh ket qua cua khung hinh cuoi cung khong? (y/n): ").strip().lower()
+                if choice == 'y':
+                    cv2.imwrite("original_image.png", frame)
+                    if 'depth_colored_full' in locals() and depth_colored_full is not None:
+                        cv2.imwrite("depth_map.png", depth_colored_full)
+                    if 'color_mask' in locals() and color_mask is not None:
+                        seg_overlay = cv2.addWeighted(frame, 0.7, color_mask, 0.3, 0)
+                        cv2.imwrite("segmentation_overlay.png", seg_overlay)
+                        cv2.imwrite("segmentation_color_mask.png", color_mask)
+                    if 'output_frame' in locals() and output_frame is not None:
+                        cv2.imwrite("fusion_result.png", output_frame)
+                    if 'dashboard' in locals() and dashboard is not None:
+                        cv2.imwrite("dashboard_result.png", dashboard)
+                    print("[INFO] Da luu thanh cong cac anh ket qua: original_image.png, depth_map.png, segmentation_overlay.png, segmentation_color_mask.png, fusion_result.png, dashboard_result.png")
+                print("="*70)
+        except Exception as e:
+            print(f"[WARNING] Khong the tu dung hoi luu file: {e}")
+    
+    if 'video_writer' in locals() and video_writer is not None:
+        video_writer.release()
+        print(f"[SUCCESS] Da ghi xong video output vao: {args.save_video}")
 finally:
     # Dam bao luon dung cac luong khi chuong trinh ket thuc
     reader_thread.stop()
@@ -1012,5 +1061,6 @@ finally:
     inference_thread.join(timeout=1.0)
 
 cap.release()
-cv2.destroyAllWindows()
+if not args.headless:
+    cv2.destroyAllWindows()
 print("[INFO] Chuong trinh ket thuc tot dep.")

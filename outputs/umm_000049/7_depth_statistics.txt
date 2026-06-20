@@ -3,7 +3,7 @@ Disparity lay tu model MiDaS (0-255). Gia tri cang cao nghia la cang gan camera.
 Khoang cach (m) uoc luong bang cong thuc: 1000 / (Disparity + 1e-5).
 ---------------------------------------------------------------------------
 - Void/Nen (Khong xac dinh)           | Khong phat hien trong khung hinh
-- Road/Mat duong                      | Disparity TB: 108.21 | Khoang cach uoc luong:   9.2m
+- Road/Mat duong                      | Disparity TB: 109.06 | Khoang cach uoc luong:   9.2m
 - Sidewalk/Via he                     | Disparity TB: 164.63 | Khoang cach uoc luong:   6.1m
 - Object/Bien bao/Den tin hieu        | Khong phat hien trong khung hinh
 - Nature/Cay coi/Tu nhien             | Disparity TB: 116.72 | Khoang cach uoc luong:   8.6m

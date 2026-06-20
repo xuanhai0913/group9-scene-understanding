@@ -25,7 +25,8 @@ traffic-scene-understanding-btl/
 │   └── trainer.py                # Định nghĩa lớp Meter đo đạc chỉ số IoU/Dice
 │
 ├── weights/
-│   └── unet_best.pth             # File trọng số mô hình U-Net đã được train sẵn
+│   └── UNET_resnet50_road/
+│       └── best_model.pth        # File trọng số mô hình U-Net ResNet50 tối ưu mới nhất
 │
 ├── eval.py                       # Script chạy đánh giá mô hình U-Net trên tập Validation
 ├── generate_heatmap.py           # Script tự động vẽ biểu đồ Confusion Matrix Heatmap

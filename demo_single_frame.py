@@ -13,19 +13,22 @@ def main():
     print(f"[INFO] Khoi chay demo single frame tren: {device}")
 
     # 1. KHOI TAO CAC DUONG DAN MO HINH
-    unet_weights_path = "weights/UNET_resnet18_road/best_model.pth"
+    unet_weights_path = "weights/UNET_resnet50_road/best_model.pth"
     config_path = "config/train_config.yaml"
     
-    backbone = "resnet18"
+    backbone = "resnet50"
     resize_dim = (640, 192) # width, height (from [192, 640])
+    base_threshold = -2.5
     
     if os.path.exists(config_path):
         try:
             config = load_train_config(config_path)
-            backbone = config.get("MODEL", {}).get("backbone", "resnet18")
+            backbone = config.get("MODEL", {}).get("backbone", "resnet50")
             cfg_resize = config.get("DATASET", {}).get("resize", [])
             if cfg_resize and len(cfg_resize) == 2:
                 resize_dim = (cfg_resize[1], cfg_resize[0])
+            unet_weights_path = config.get("EVAL", {}).get("model_path", unet_weights_path)
+            base_threshold = config.get("EVAL", {}).get("base_threshold", base_threshold)
         except Exception as e:
             print(f"[WARNING] Loi doc file train_config: {e}")
 
@@ -114,7 +117,7 @@ def main():
     with torch.no_grad():
         seg_output = unet_model(seg_tensor)
         if seg_output.shape[1] == 1:
-            seg_mask = (torch.sigmoid(seg_output) > 0.5).long().squeeze(0).squeeze(0).cpu().numpy()
+            seg_mask = (seg_output > base_threshold).long().squeeze(0).squeeze(0).cpu().numpy()
         else:
             seg_mask = torch.argmax(seg_output, dim=1).squeeze(0).cpu().numpy()
 

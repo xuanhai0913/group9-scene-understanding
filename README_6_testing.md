@@ -27,28 +27,28 @@ python eval.py --config_path config/train_config.yaml
 
 ### Kết quả đo đạc thực tế:
 ```
-***** Prediction done in 114 sec.; IoU: 0.37879250429827593, Dice: 0.7575850085965516 *****
+***** Prediction done in 332 sec.; IoU: 0.8335252373382963, Dice: 0.9064655509488333 ***** 
 
 ==================================================
 ***** CLASSIFICATION METRICS (Pixel-wise) *****
 ==================================================
 
 Metrics:
-  - Accuracy:  0.918974
-  - Precision: 0.801064
-  - Recall:    0.713633
-  - F1-Score:  0.754825
+  - Accuracy:  0.965134
+  - Precision: 0.835061
+  - Recall:    0.997551
+  - F1-Score:  0.909102
 
 Confusion Matrix:
                      Predicted Neg    Predicted Pos
-Actual Neg (BG)           21455330           836748
-Actual Pos (FG)            1352061          3369361
+Actual Neg (BG)           21361799           930279
+Actual Pos (FG)              11564          4709858
 --------------------------------------------------
 ```
 
-*   **Chỉ số Accuracy:** **91.90%** (Tỷ lệ pixel đoán đúng nhãn trên ảnh).
-*   **Chỉ số Recall:** **71.36%** (Độ phủ làn đường, chứng tỏ mô hình hạn chế tối đa việc bỏ sót vệt đường).
-*   **Chỉ số IoU:** **37.88%** (Đạt tiêu chuẩn chất lượng cao đối với phân đoạn thời gian thực).
+*   **Chỉ số Accuracy:** **96.51%** (Tỷ lệ pixel đoán đúng nhãn trên ảnh).
+*   **Chỉ số Recall:** **99.76%** (Độ phủ làn đường, chứng tỏ mô hình hạn chế tối đa việc bỏ sót vệt đường).
+*   **Chỉ số IoU:** **83.35%** (Đạt tiêu chuẩn chất lượng cao đối với phân đoạn thời gian thực).
 
 ---
 
@@ -70,7 +70,7 @@ Hình ảnh kết quả sẽ được lưu trực tiếp tại file **`confusion
 | 1 | **Data Loader & Preprocess** | Đọc dữ liệu ảnh/video đầu vào, thực hiện Resize về `(192, 640)`, chuẩn hóa ImageNet và đưa lên Device (CPU/CUDA). | Ảnh đầu vào được xử lý đúng định dạng tensor `[1, 3, 192, 640]`, không gây lỗi tràn bộ nhớ. | **Passed** |
 | 2 | **Segmentation (U-Net)** | Đưa ảnh qua mô hình U-Net để dự đoán phân vùng mặt đường. | Trả về mặt nạ phân đoạn nhị phân. Recall đạt trên `70%` và Accuracy đạt trên `90%`. | **Passed** |
 | 3 | **Depth Estimation (MiDaS)** | Ước lượng độ sâu từ ảnh đơn sắc sử dụng MiDaS TFLite. | Trả về ma trận độ sâu disparity (0-255). Vùng gần xe có màu ấm, vùng xa có màu lạnh. | **Passed** |
-| 4 | **Object Detection (YOLO/R-CNN)** | Nhận diện vị trí hộp bao (Bounding Box) của ô tô, xe máy, người đi bộ trong ảnh. | Trả về danh sách tọa độ hộp bao kèm nhãn phân loại chính xác. | **Passed** |
+| 4 | **Object Detection (Faster R-CNN)** | Nhận diện vị trí hộp bao (Bounding Box) của ô tô, xe máy, người đi bộ trong ảnh. | Trả về danh sách tọa độ hộp bao kèm nhãn phân loại chính xác. | **Passed** |
 | 5 | **Fusion & Distance HUD** | Đồng bộ hóa hộp bao với giá trị độ sâu tương ứng và tính khoảng cách (m). | Tính toán khoảng cách hợp lý. Vẽ đường radar nối va chạm và hiển thị HUD. | **Passed** |
 | 6 | **Digital Lane Filter** | Dựng dải phân cách để lọc các chướng ngại vật ngoài làn di chuyển của xe chủ. | Triệt tiêu cảnh báo va chạm đối với xe chạy ngược chiều ở làn đối diện hoặc lề đường. | **Passed** |
 | 7 | **HUD Collision Warning** | Kiểm tra điều kiện khoảng cách chướng ngại vật cùng làn dưới `5.0m`. | Kích hoạt cảnh báo hiển thị Banner đỏ: `COLLISION WARNING!` trên màn hình HUD. | **Passed** |

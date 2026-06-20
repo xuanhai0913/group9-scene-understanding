@@ -68,7 +68,7 @@ class Meter:
 
             neg = (p_sum == 0).float()
             dice_pos = (2 * intersection) / (union + 1e-7)
-            iou_pos = intersection / (union + 1e-7)
+            iou_pos = intersection / (union - intersection + 1e-7)
 
             neg = neg[neg_index]
             dice_pos = dice_pos[pos_index]
@@ -241,10 +241,11 @@ class Trainer(object):
         self.best_metric = float("inf")
         self.phases = ["train", "val"]
         if torch.cuda.is_available():
-            torch.set_default_tensor_type("torch.cuda.FloatTensor")
+            # torch.set_default_tensor_type("torch.cuda.FloatTensor")
             cudnn.benchmark = True
         else:
-            torch.set_default_tensor_type("torch.FloatTensor")
+            pass
+            # torch.set_default_tensor_type("torch.FloatTensor")
         self.freeze_flag = True
         self.start_epoch = 0
 

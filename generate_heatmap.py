@@ -1,4 +1,11 @@
 import os
+import sys
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+except:
+    pass
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -7,11 +14,10 @@ plt.rcParams['font.sans-serif'] = 'Arial'
 plt.rcParams['font.family'] = 'sans-serif'
 
 # Dữ liệu ma trận nhầm lẫn (tỷ lệ phần trăm đã chuẩn hóa)
-classes = ['Bầu trời (Sky)', 'Mặt đường (Road)', 'Vỉa hè (Sidewalk)']
+classes = ['Nền (Background)', 'Mặt đường (Road)']
 cm = np.array([
-    [0.97, 0.00, 0.03],  # Thực tế là Bầu trời (Actual Sky)
-    [0.00, 0.88, 0.12],  # Thực tế là Mặt đường (Actual Road)
-    [0.01, 0.17, 0.82]   # Thực tế là Vỉa hè (Actual Sidewalk)
+    [0.9583, 0.0417],  # Thực tế là Nền (Actual Background)
+    [0.0025, 0.9975]   # Thực tế là Mặt đường (Actual Road)
 ])
 
 fig, ax = plt.subplots(figsize=(8, 6.5))

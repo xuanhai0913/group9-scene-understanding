@@ -23,7 +23,7 @@ Hệ thống nhận đầu vào là luồng video từ camera hành trình phía
 ```mermaid
 graph TD
     Input[Video Camera Kính lái] -->|Frame| Preprocess[Tiền xử lý dữ liệu]
-    Preprocess --> Seg[Nhánh 1: U-Net ResNet18 <br>Phân đoạn Mặt đường]
+    Preprocess --> Seg[Nhánh 1: U-Net ResNet50 <br>Phân đoạn Mặt đường]
     Preprocess --> Det[Nhánh 2: Faster R-CNN <br>Phát hiện xe/người/biển báo]
     Preprocess --> Depth[Nhánh 3: MiDaS TFLite <br>Bản đồ độ sâu]
     
@@ -42,8 +42,8 @@ graph TD
 
 ## III. CHI TIẾT CÁC MÔ HÌNH HỌC SÂU ÁP DỤNG
 
-### 1. Mô hình Phân đoạn Mặt đường (Semantic Segmentation) - U-Net ResNet18
-*   **Kiến trúc**: Mạng U-Net sử dụng cấu trúc Encoder-Decoder truyền thống với các kết nối tắt (skip connections) giúp giữ lại thông tin không gian chi tiết. Bộ mã hóa Encoder sử dụng cấu trúc **ResNet18** đã huấn luyện trước.
+### 1. Mô hình Phân đoạn Mặt đường (Semantic Segmentation) - U-Net ResNet50
+*   **Kiến trúc**: Mạng U-Net sử dụng cấu trúc Encoder-Decoder truyền thống với các kết nối tắt (skip connections) giúp giữ lại thông tin không gian chi tiết. Bộ mã hóa Encoder sử dụng cấu trúc **ResNet50** đã huấn luyện trước.
 *   **Huấn luyện**: Được huấn luyện trên tập dữ liệu giao thông đường phố (Cityscapes/KITTI).
 *   **Chức năng**: Tách biệt vùng mặt đường (Road) khỏi các vùng không lái được (vỉa hè, cay cối, bầu trời). Mặt đường được phân đoạn và tô màu tím (purple) trên màn hình.
 

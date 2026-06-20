@@ -56,7 +56,7 @@ class CustomDataset(Dataset):
                     # Hard augs 
                     OneOf([
                         RandomFog(p=0.5, fog_coef_lower=0.1, fog_coef_upper=.3, alpha_coef=0.08),
-                        RandomRain(p=0.5, slant_lower=-20, slant_upper=20, rain_type=None), # [None, "drizzle", "heavy", "torrestial"]
+                        RandomRain(p=0.5, slant_lower=-20, slant_upper=20, rain_type="default"), # ["default", "drizzle", "heavy", "torrential"]
                         RandomSnow(p=0.5, snow_point_lower=0.1, snow_point_upper=0.3, brightness_coeff=2.5),
                         RandomSunFlare(p=0.5, flare_roi=(0, 0, 1, 0.5), angle_lower=0, angle_upper=1, num_flare_circles_lower=3, 
                                         num_flare_circles_upper=6, src_radius=400, src_color=(255, 255, 255))  

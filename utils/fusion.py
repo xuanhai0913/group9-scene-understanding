@@ -121,6 +121,13 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
     fused_detections = []
     is_multiclass = (not use_fallback_detection) and (num_classes > 1)
     
+    # Xác định chỉ số nhãn dựa trên số lượng lớp của U-Net
+    road_class = 0 if num_classes == 4 else 1
+    sky_class = 1 if num_classes == 4 else 5
+    vehicle_class = 2 if num_classes == 4 else 7
+    human_class = 6  # Không có trong U-Net 4 lớp
+    sign_class = 3
+    
     # 1. Lọc nhiễu
     for det in detections:
         box = det['box']
@@ -135,7 +142,7 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
         
         if not is_multiclass:
             # Với mô hình nhị phân hoặc giả lập, chỉ lọc nếu hộp bao nằm phần lớn ở bầu trời (Class 5)
-            sky_pixels = np.sum(box_seg == 5)
+            sky_pixels = np.sum(box_seg == sky_class)
             if sky_pixels / box_area > 0.85:
                 continue
             fused_detections.append(det)
@@ -143,18 +150,26 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
             
         # Tính toán tỷ lệ cho mô hình đa lớp thực tế
         if obs_type == 'vehicle':
-            matching_pixels = np.sum((box_seg == 7) | (box_seg == 1))
+            matching_pixels = np.sum((box_seg == vehicle_class) | (box_seg == road_class))
             ratio = matching_pixels / box_area
             if ratio < 0.12:
                 continue
         elif obs_type == 'human':
-            matching_pixels = np.sum((box_seg == 6) | (box_seg == 1))
+            if num_classes == 4:
+                # Trong U-Net 4 lớp, human là background (class 3) nên chỉ cần check nằm trên đường (class 0)
+                matching_pixels = np.sum(box_seg == road_class)
+            else:
+                matching_pixels = np.sum((box_seg == human_class) | (box_seg == road_class))
             ratio = matching_pixels / box_area
             if ratio < 0.08:
                 continue
         elif obs_type in ['traffic light', 'stop sign']:
-            matching_pixels = np.sum(box_seg == 3)
-            ratio = matching_pixels / box_area
+            if num_classes == 4:
+                # Trong U-Net 4 lớp, biển báo thuộc background (class 3) nên không cần lọc theo mask
+                ratio = 1.0
+            else:
+                matching_pixels = np.sum(box_seg == sign_class)
+                ratio = matching_pixels / box_area
             if ratio < 0.03:
                 continue
                 
@@ -162,8 +177,8 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
         
     # 2. Khôi phục vật thể bị bỏ sót (chỉ áp dụng cho đa lớp thực tế)
     if is_multiclass:
-        # Khôi phục Xe (Class 7)
-        vehicle_mask = (seg_mask_full == 7).astype(np.uint8)
+        # Khôi phục Xe (Vehicle)
+        vehicle_mask = (seg_mask_full == vehicle_class).astype(np.uint8)
         contours, _ = cv2.findContours(vehicle_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for contour in contours:
             area = cv2.contourArea(contour)
@@ -187,29 +202,30 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
                             'fused_backup': True
                         })
                         
-        # Khôi phục Người (Class 6)
-        human_mask = (seg_mask_full == 6).astype(np.uint8)
-        contours, _ = cv2.findContours(human_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for contour in contours:
-            area = cv2.contourArea(contour)
-            if area > 500:
-                x, y, w, h = cv2.boundingRect(contour)
-                overlap = False
-                for det in fused_detections:
-                    if det['type'] == 'human':
-                        iou, _ = compute_overlap((x, y, x + w, y + h), det['box'])
-                        if iou > 0.25:
-                            overlap = True
-                            break
-                if not overlap:
-                    box_depth = depth_map[y:y+h, x:x+w]
-                    if box_depth.size > 0:
-                        max_d = np.percentile(box_depth, 95)
-                        fused_detections.append({
-                            'box': (x, y, x + w, y + h),
-                            'depth': max_d,
-                            'type': 'human',
-                            'fused_backup': True
-                        })
-                        
+        # Khôi phục Người (Human) - Chỉ khi mô hình U-Net hỗ trợ (num_classes != 4)
+        if num_classes != 4:
+            human_mask = (seg_mask_full == human_class).astype(np.uint8)
+            contours, _ = cv2.findContours(human_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area > 500:
+                    x, y, w, h = cv2.boundingRect(contour)
+                    overlap = False
+                    for det in fused_detections:
+                        if det['type'] == 'human':
+                            iou, _ = compute_overlap((x, y, x + w, y + h), det['box'])
+                            if iou > 0.25:
+                                overlap = True
+                                break
+                    if not overlap:
+                        box_depth = depth_map[y:y+h, x:x+w]
+                        if box_depth.size > 0:
+                            max_d = np.percentile(box_depth, 95)
+                            fused_detections.append({
+                                'box': (x, y, x + w, y + h),
+                                'depth': max_d,
+                                'type': 'human',
+                                'fused_backup': True
+                            })
+                            
     return fused_detections

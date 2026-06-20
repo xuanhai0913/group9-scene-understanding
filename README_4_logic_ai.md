@@ -14,7 +14,7 @@ Mỗi khung hình video đầu vào đi qua 3 luồng xử lý song song trướ
          ┌────────────────┼────────────────┐
          ▼                ▼                ▼
    ┌───────────┐    ┌───────────┐    ┌───────────┐
-   │   U-Net   │    │   MiDaS   │    │   YOLO    │
+   │   U-Net   │    │   MiDaS   │    │  FR-CNN   │
    └─────┬─────┘    └─────┬─────┘    └─────┬─────┘
          │ (Mask)         │ (Depth)        │ (BBoxes)
          ▼                │                ▼
@@ -39,7 +39,7 @@ Mỗi khung hình video đầu vào đi qua 3 luồng xử lý song song trướ
 *   Thiết lập các đa giác làn đường tương ứng (Ego Lane Polygon Area) dựa trên các tọa độ biên này để khoanh vùng khu vực theo dõi vật cản của xe chủ.
 
 ### 2.2. Thuật toán đo khoảng cách thực tế (Depth Mapping Logic)
-*   Để đo khoảng cách xe phía trước, hệ thống lấy tọa độ hộp bao của xe từ YOLO.
+*   Để đo khoảng cách xe phía trước, hệ thống lấy tọa độ hộp bao của xe từ Faster R-CNN.
 *   Cắt phân vùng tương ứng trên bản đồ độ sâu của MiDaS (tập trung vào 1/3 phía dưới của hộp bao vì đây là điểm tiếp xúc bánh xe gần đúng của phương tiện với mặt đường).
 *   Tính toán giá trị trung vị (Median Depth) của vùng này để tránh nhiễu và quy đổi thành khoảng cách mét theo công thức: 
     $$d = \frac{1000.0}{\text{Depth}_{\text{median}} + 10^{-5}}$$
