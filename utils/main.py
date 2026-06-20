@@ -995,9 +995,18 @@ try:
             canvas[y_offset:y_offset+h_draw, x_offset:x_offset+w_draw] = dashboard[:h_draw, :w_draw]
             
         if args.save_video and 'video_writer' not in locals():
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            video_writer = cv2.VideoWriter(args.save_video, fourcc, 15.0, (win_w, win_h))
-            print(f"[INFO] Da khoi tao ghi video tai: {args.save_video} voi kich thuoc {win_w}x{win_h}")
+            try:
+                # Try H.264 codec (avc1) for maximum compatibility with default Windows/Mac players and web browsers
+                fourcc = cv2.VideoWriter_fourcc(*'avc1')
+                video_writer = cv2.VideoWriter(args.save_video, fourcc, 15.0, (win_w, win_h))
+                # Check if it opened successfully, otherwise fallback
+                if not video_writer.isOpened():
+                    raise Exception("avc1 not supported")
+                print(f"[INFO] Da khoi tao ghi video tai: {args.save_video} voi codec: avc1, kich thuoc {win_w}x{win_h}")
+            except Exception:
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                video_writer = cv2.VideoWriter(args.save_video, fourcc, 15.0, (win_w, win_h))
+                print(f"[INFO] Da khoi tao ghi video tai: {args.save_video} voi codec fallback: mp4v, kich thuoc {win_w}x{win_h}")
 
         if args.save_video and 'video_writer' in locals() and video_writer is not None:
             video_writer.write(canvas)
