@@ -55,19 +55,32 @@ Di chuyển vào thư mục code và cài đặt các package phụ thuộc:
 ```
 
 ### Ô số 4: Thực thi Pipeline xử lý video ẩn danh (Headless) và Lưu video đầu ra
-Chạy tập lệnh chính để thực hiện nhận diện làn đường, phát hiện phương tiện, đo khoảng cách và ghi video thành phẩm:
-```bash
-# Lệnh chạy video 1 (ho-chi-minh-road-traffic.mp4):
-!python -m utils.main --video_path data/sample_videos/ho-chi-minh-road-traffic.mp4 --headless --save_video output_video1.mp4
+Chạy tập lệnh chính để thực hiện nhận diện làn đường, phát hiện phương tiện, đo khoảng cách và ghi video thành phẩm. 
 
-# Hoặc lệnh chạy video 3 (video3lightneed.mp4 - đường hai chiều, bật cờ --full_road):
-# !python -m utils.main --video_path data/sample_videos/video3lightneed.mp4 --headless --full_road --save_video output_video3.mp4
+Bạn hãy chọn chạy một trong các chế độ dưới đây tùy theo mục đích demo:
+
+**1. Chế độ Giám sát chia làn EGO (Khuyên dùng cho Video 1):**
+Giả lập xe mình chạy hoàn toàn ở làn bên phải của đường 1 chiều, bỏ qua các xe ở làn trái để không bị cảnh báo đỏ đè vạch:
+```bash
+# Chạy video 1 (khuyên dùng):
+!python -m utils.main --video_path data/sample_videos/ho-chi-minh-road-traffic.mp4 --headless --split_road --save_video output_video1.mp4
+
+# Chạy video 3 (tăng tốc nhanh gấp 3 lần bằng --skip_frames 3):
+!python -m utils.main --video_path data/sample_videos/video3lightneed.mp4 --headless --split_road --skip_frames 3 --save_video output_video3.mp4
+```
+
+**2. Chế độ Giám sát toàn bộ mặt đường (Chế độ mặc định tự động):**
+Giám sát toàn bộ các làn đường chạy song song:
+```bash
+# Chạy video 1:
+!python -m utils.main --video_path data/sample_videos/ho-chi-minh-road-traffic.mp4 --headless --save_video output_video1.mp4
 ```
 
 > [!NOTE]
-> *   Cờ `--headless` đảm bảo chương trình chạy nền không mở cửa sổ OpenCV (vì Colab không hỗ trợ hiển thị màn hình trực tiếp).
-> *   Cờ `--save_video output_video1.mp4` sẽ ghi toàn bộ luồng video xử lý HUD thành file `output_video1.mp4`.
-> *   Nhờ có **GPU T4**, tốc độ xử lý sẽ đạt mức **~30 FPS** (Thời gian thực), video 10 giây chỉ mất khoảng 10 giây để xử lý xong.
+> *   Cờ `--headless` đảm bảo chương trình chạy nền không mở cửa sổ hiển thị đồ họa OpenCV (bắt buộc trên Colab).
+> *   Cờ `--split_road` giúp giới hạn hành lang an toàn màu xanh lá ở làn bên phải và dịch chuyển tâm `MY CAR` sang bên phải (khắc phục hiện tượng tâm xe bị đè lên vạch phân làn ở giữa).
+> *   Cờ `--skip_frames 3` giúp tăng tốc độ xử lý video lên gấp 3 lần bằng cách bỏ qua bớt các khung hình trung gian (rất hữu ích cho Video 3 dung lượng lớn ~98MB).
+> *   Nhờ có **GPU T4**, tốc độ xử lý sẽ đạt mức **~30 FPS** (Thời gian thực).
 
 ---
 
