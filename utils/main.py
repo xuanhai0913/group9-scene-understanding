@@ -705,7 +705,7 @@ try:
                             if len(depth_hist) >= 2:
                                 dist_hist = [1000.0 / (d + 1e-5) for d in depth_hist]
                                 diff = dist_hist[-1] - dist_hist[-2]
-                                # Tốc độ tiếp cận nhanh (khoảng cách giảm > 3m trong 1 chu kỳ)
+                                # Heuristic: chỉ số khoảng cách tương đối giảm nhanh trong một chu kỳ.
                                 if diff < -3.0:
                                     tracker.oncoming_hits_count += 1
                                     
@@ -976,9 +976,9 @@ try:
                 
                 msg = "COLLISION WARNING: Obstacle too close!"
                 if warn_above and dist_above is not None:
-                    msg += f" Front: {dist_above:.1f}m"
+                    msg += f" Front rel: {dist_above:.1f}"
                 if warn_below and dist_below is not None:
-                    msg += f" Below: {dist_below:.1f}m"
+                    msg += f" Below rel: {dist_below:.1f}"
                 cv2.putText(output_frame, msg, (15, int(hud_h * 0.7)), cv2.FONT_HERSHEY_DUPLEX, hud_font_scale, (255, 255, 255), hud_thickness, cv2.LINE_AA)
             elif cutting_in_tracks:
                 cv2.rectangle(output_frame, (0, 0), (disp_w, disp_h), (0, 165, 255), 6)
@@ -989,7 +989,7 @@ try:
                 cutting_in_tracks.sort(key=lambda x: x[1])
                 tid_cut, dist_cut = cutting_in_tracks[0]
                 track_type = active_tracks[tid_cut]['type'].upper() if tid_cut in active_tracks else "OBJECT"
-                msg = f"WARNING: {track_type} #{tid_cut} is cutting in! Dist: {dist_cut:.1f}m"
+                msg = f"WARNING: {track_type} #{tid_cut} is cutting in! Rel: {dist_cut:.1f}"
                 cv2.putText(output_frame, msg, (15, int(hud_h * 0.7)), cv2.FONT_HERSHEY_DUPLEX, hud_font_scale, (255, 255, 255), hud_thickness, cv2.LINE_AA)
             else:
                 overlay = output_frame.copy()
@@ -998,9 +998,9 @@ try:
                 
                 msg = "Status: Safe."
                 if dist_above is not None:
-                    msg += f" Front: {dist_above:.1f}m"
+                    msg += f" Front rel: {dist_above:.1f}"
                 if dist_below is not None:
-                    msg += f" Close: {dist_below:.1f}m"
+                    msg += f" Close rel: {dist_below:.1f}"
                 if dist_above is None and dist_below is None:
                     msg += " No obstacles in lane."
                 cv2.putText(output_frame, msg, (15, int(hud_h * 0.7)), cv2.FONT_HERSHEY_SIMPLEX, hud_font_scale, (255, 255, 255), hud_thickness, cv2.LINE_AA)
@@ -1019,7 +1019,7 @@ try:
                     dist = track['dist']
                     is_in_lane = track['is_in_lane']
                     
-                    # Cảnh báo bất kỳ xe nào trong làn có khoảng cách dưới ngưỡng an toàn
+                    # Cảnh báo theo ngưỡng heuristic của chỉ số khoảng cách tương đối.
                     is_danger = False
                     if is_in_lane:
                         if dist < 5.0:
@@ -1053,7 +1053,7 @@ try:
                     else:
                         suffix = ""
                         
-                    label_text = f"{track['type'].upper()}{suffix} #{tid}: {dist:.1f}m"
+                    label_text = f"{track['type'].upper()}{suffix} #{tid}: {dist:.1f} rel"
                     font_scale = max(0.35, 0.5 * (disp_h / 360.0))
                     font_thickness = max(1, int(1.5 * (disp_h / 360.0)))
                     (w_label, h_label), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)

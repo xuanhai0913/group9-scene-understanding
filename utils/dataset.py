@@ -52,7 +52,7 @@ class CustomDataset(Dataset):
                 ])
                 
             if self.hard_augs:
-                list_transforms.extend(
+                list_transforms.append(
                     # Hard augs 
                     OneOf([
                         RandomFog(p=0.5, fog_coef_lower=0.1, fog_coef_upper=.3, alpha_coef=0.08),

@@ -6,7 +6,7 @@ Tài liệu này hướng dẫn cách chạy thử nghiệm hệ thống và ghi
 
 ## 1. Hướng dẫn chạy thử nghiệm thời gian thực (Real-time Pipeline)
 
-Chạy chương trình điều phối chính để thực hiện nhận diện làn đường, đo khoảng cách và cảnh báo va chạm trực tiếp trên video:
+Chạy chương trình điều phối chính để thực hiện nhận diện làn đường, ước lượng gần/xa tương đối và hiển thị cảnh báo minh họa trên video:
 ```powershell
 python -m utils.main
 ```
@@ -71,6 +71,6 @@ Hình ảnh kết quả sẽ được lưu trực tiếp tại file **`confusion
 | 2 | **Segmentation (U-Net)** | Đưa ảnh qua mô hình U-Net để dự đoán phân vùng mặt đường. | Trả về mặt nạ phân đoạn nhị phân. Recall đạt trên `70%` và Accuracy đạt trên `90%`. | **Passed** |
 | 3 | **Depth Estimation (MiDaS)** | Ước lượng độ sâu từ ảnh đơn sắc sử dụng MiDaS TFLite. | Trả về ma trận độ sâu disparity (0-255). Vùng gần xe có màu ấm, vùng xa có màu lạnh. | **Passed** |
 | 4 | **Object Detection (Faster R-CNN)** | Nhận diện vị trí hộp bao (Bounding Box) của ô tô, xe máy, người đi bộ trong ảnh. | Trả về danh sách tọa độ hộp bao kèm nhãn phân loại chính xác. | **Passed** |
-| 5 | **Fusion & Distance HUD** | Đồng bộ hóa hộp bao với giá trị độ sâu tương ứng và tính khoảng cách (m). | Tính toán khoảng cách hợp lý. Vẽ đường radar nối va chạm và hiển thị HUD. | **Passed** |
+| 5 | **Fusion & Relative Depth HUD** | Đồng bộ hóa hộp bao với giá trị depth tương ứng và tính chỉ số khoảng cách tương đối. | Thứ tự gần/xa hợp lý; vẽ đường radar và hiển thị HUD. | **Passed** |
 | 6 | **Digital Lane Filter** | Dựng dải phân cách để lọc các chướng ngại vật ngoài làn di chuyển của xe chủ. | Triệt tiêu cảnh báo va chạm đối với xe chạy ngược chiều ở làn đối diện hoặc lề đường. | **Passed** |
-| 7 | **HUD Collision Warning** | Kiểm tra điều kiện khoảng cách chướng ngại vật cùng làn dưới `5.0m`. | Kích hoạt cảnh báo hiển thị Banner đỏ: `COLLISION WARNING!` trên màn hình HUD. | **Passed** |
+| 7 | **HUD Collision Warning** | Kiểm tra chướng ngại vật cùng làn thỏa điều kiện cảnh báo heuristic đã cấu hình. | Kích hoạt banner đỏ `COLLISION WARNING!`; không diễn giải ngưỡng thành mét. | **Passed** |

@@ -32,7 +32,7 @@ graph TD
     Depth --> Integration
     
     Integration -->|Lọc làn đường| LaneFilter[Loại bỏ xe làn ngược chiều]
-    LaneFilter -->|Tính khoảng cách mét| DistCalc[Ước lượng khoảng cách Z]
+    LaneFilter -->|Tính chỉ số tương đối| DistCalc[Ước lượng mức gần/xa]
     DistCalc -->|So sánh ngưỡng an toàn| AlertSystem[Cảnh báo va chạm khẩn cấp]
     
     AlertSystem --> Output[Dashboard hiển thị HUD]
@@ -87,13 +87,14 @@ Thay vì vẽ hành lang hình thang cố định đè lên cảnh vật xung qu
 *   Hệ thống thực hiện phép giao logic (bitwise AND) giữa đa giác hành lang giám sát với mặt nạ phân đoạn mặt đường thực tế trước khi tô màu xanh lá (`overlay[poly_mask & road_mask] = (0, 255, 0)`).
 *   Nhờ đó, hành lang xanh lá chỉ phủ trên mặt đường nhựa, tự động bo góc và cắt gọn tại mép dải phân cách hoặc vỉa hè, mang lại trải nghiệm thị giác cao cấp.
 
-### 4. Ước lượng khoảng cách & Cảnh báo va chạm đa hướng
-Khoảng cách thực tế (mét) từ camera đến chướng ngại vật được ước lượng tuyến tính thông qua giá trị độ sâu của MiDaS:
-*   Công thức tính: `Dist = 1000.0 / (Depth_val + 0.00001)`
+### 4. Ước lượng gần/xa & Cảnh báo minh họa đa hướng
+MiDaS trả về inverse relative depth, không phải khoảng cách tuyệt đối. Demo tạo một chỉ số khoảng cách tương đối để xếp hạng vật thể gần/xa:
+*   Công thức tính: `RelativeDist = 1000.0 / (Depth_val + 0.00001)`.
+*   Chỉ số này không có đơn vị mét. Việc suy ra khoảng cách thực cần camera calibration và ground truth.
 
 Hệ thống tiến hành phân loại và cảnh báo dựa trên đường ranh giới đầu xe `EGO-FRONT BOUNDARY` (y = camera_center[1]):
-*   **Cảnh báo nguy hiểm phía trước (Màu Đỏ):** Phương tiện nằm trong làn di chuyển (`is_in_lane = True`) và có khoảng cách `Dist < 5.0` mét. Hệ thống hiển thị thanh trạng thái màu đỏ: `COLLISION WARNING: Obstacle too close!`.
-*   **Cảnh báo tạt đầu nguy hiểm (Màu Cam):** Phương tiện nằm ngoài làn (`is_in_lane = False`), có khoảng cách `Dist < 12.0` mét, di chuyển ngang hướng vào làn xe mình với độ lệch ngang `delta_d > 0.35m`. Hệ thống hiển thị thanh trạng thái màu cam: `WARNING: VEHICLE #ID is cutting in!`.
+*   **Cảnh báo nguy hiểm phía trước (Màu Đỏ):** Phương tiện nằm trong làn di chuyển (`is_in_lane = True`) và chỉ số tương đối thỏa điều kiện cảnh báo heuristic của demo. Hệ thống hiển thị thanh trạng thái màu đỏ: `COLLISION WARNING: Obstacle too close!`.
+*   **Cảnh báo tạt đầu (Màu Cam):** Phương tiện nằm ngoài làn (`is_in_lane = False`), đạt ngưỡng tương đối của demo và có xu hướng di chuyển ngang vào làn xe mình. Hệ thống hiển thị thanh trạng thái màu cam: `WARNING: VEHICLE #ID is cutting in!`.
 *   **Trạng thái an toàn (Màu Xanh lá):** Không có phương tiện nào nằm trong ngưỡng nguy hiểm hoặc tạt đầu. Hệ thống duy trì thanh trạng thái màu xanh lá: `Status: Safe`.
 
 ---
@@ -103,6 +104,6 @@ Hệ thống tiến hành phân loại và cảnh báo dựa trên đường ran
 1.  **Hiển thị trực quan HUD cao cấp**: 
     *   Tự động vẽ các đường nối va chạm động giữa điểm `MY CAR` với các xe nguy hiểm.
     *   Đường nối tự động chuyển sang màu đỏ dày khi vi phạm khoảng cách an toàn, và giữ màu xanh lá mỏng khi an toàn.
-    *   Hiển thị số mét thực tế trực quan ngay tại trung điểm đường nối.
+    *   Hiển thị chỉ số khoảng cách tương đối tại trung điểm đường nối.
 2.  **Độ chính xác và tính thực tiễn cao**: Nhờ bộ lọc dải phân cách cứng, hệ thống đã loại bỏ hoàn toàn các báo động sai từ làn ngược chiều hoặc các phương tiện không cùng làn xe chạy.
 3.  **Tối ưu hóa hiệu năng**: Việc tích hợp Faster R-CNN MobileNetV3 và MiDaS TFLite giúp pipeline vận hành ổn định thời gian thực trên cả máy tính xách tay thông thường không có GPU chuyên dụng.

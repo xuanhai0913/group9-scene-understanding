@@ -158,7 +158,7 @@ def process_single_image(image_path, unet_model, detection_model, depth_estimato
     else:
         cv2.putText(output_frame, "Status: Safe", (30, hud_y), cv2.FONT_HERSHEY_SIMPLEX, hud_font_scale, (0, 255, 0), hud_thickness, cv2.LINE_AA)
 
-    # Vẽ bounding box và hiển thị HUD khoảng cách
+    # Vẽ bounding box và hiển thị chỉ số khoảng cách tương đối.
     if detected_obstacles:
         for obs in detected_obstacles:
             xmin, ymin, xmax, ymax = obs['box']
@@ -176,7 +176,7 @@ def process_single_image(image_path, unet_model, detection_model, depth_estimato
             
             cv2.rectangle(output_frame, (xmin, ymin), (xmax, ymax), color, thickness)
             
-            label_text = f"{obs.get('type').upper()}: {dist:.1f}m"
+            label_text = f"{obs.get('type').upper()}: {dist:.1f} rel"
             font_scale = max(0.40, 0.60 * (orig_w / 1280.0))
             font_thickness = max(1, int(1.5 * (orig_w / 1280.0)))
             (w_label, h_label), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
@@ -238,7 +238,7 @@ def process_single_image(image_path, unet_model, detection_model, depth_estimato
     with open(stats_file, "w", encoding="utf-8") as sf:
         sf.write(f"=== KET QUA PHAN TICH DO SAU THEO LOP NGU NGHIA ({base_name}) ===\n")
         sf.write("Disparity lay tu model MiDaS (0-255). Gia tri cang cao nghia la cang gan camera.\n")
-        sf.write("Khoang cach (m) uoc luong bang cong thuc: 1000 / (Disparity + 1e-5).\n")
+        sf.write("Chi so khoang cach tuong doi = 1000 / (Disparity + 1e-5); khong co don vi met.\n")
         sf.write("-" * 75 + "\n")
         
         # Mặc định U-Net nhị phân (chỉ phân vùng mặt đường = class 1)
@@ -285,8 +285,8 @@ def process_single_image(image_path, unet_model, detection_model, depth_estimato
 
             if np.any(mask):
                 avg_disp = np.mean(depth_map[mask])
-                approx_dist = 1000.0 / (avg_disp + 1e-5)
-                sf.write(f"- {name:<35} | Disparity TB: {avg_disp:6.2f} | Khoang cach uoc luong: {approx_dist:5.1f}m\n")
+                relative_distance = 1000.0 / (avg_disp + 1e-5)
+                sf.write(f"- {name:<35} | Disparity TB: {avg_disp:6.2f} | Chi so khoang cach tuong doi: {relative_distance:5.1f}\n")
             else:
                 sf.write(f"- {name:<35} | Khong phat hien trong khung hinh\n")
                 

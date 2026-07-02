@@ -227,7 +227,7 @@ def main():
             x_center = (xmin + xmax) // 2
             y_center = (ymin + ymax) // 2
             
-            # Tinh toan khoang cach
+            # Chỉ số khoảng cách tương đối, không phải khoảng cách theo mét.
             dist = 1000.0 / (obs['depth'] + 1e-5)
             
             # Kiem tra xem co phai la vat the dang canh bao va cham khong
@@ -242,8 +242,8 @@ def main():
             # Ve hop bao quanh xe/nguoi
             cv2.rectangle(output_frame, (xmin, ymin), (xmax, ymax), color, thickness)
             
-            # Nhan loai vat the + khoang cach
-            label_text = f"{obs.get('type', 'vehicle').upper()}: {dist:.1f}m"
+            # Nhan loai vat the + chi so khoang cach tuong doi
+            label_text = f"{obs.get('type', 'vehicle').upper()}: {dist:.1f} rel"
             font_scale = max(0.45, 0.65 * (orig_w / 1280.0))
             font_thickness = max(1, int(2 * (orig_w / 1280.0)))
             (w_label, h_label), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)

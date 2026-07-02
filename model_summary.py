@@ -16,7 +16,7 @@ if __name__ == "__main__":
     globals().update(args.__dict__)
 
     model_type = model_type.lower()
-    input_size = tuple(int(d) for d in re.split("\D", input_size))
+    input_size = tuple(int(d) for d in re.split(r"\D", input_size))
 
     if model_type == "unet":
         model = UnetResNet(encoder_name=backbone, 

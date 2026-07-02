@@ -43,8 +43,17 @@ Yêu cầu Python từ phiên bản 3.8 trở lên. Cài đặt các thư viện
 pip install -r requirements.txt
 ```
 
-### Bước 2: Kiểm tra cấu hình hệ thống
-Mở file cấu hình [config/train_config.yaml](file:///d:/BTL_XLA/traffic-scene-understanding-btl/config/train_config.yaml) để kiểm tra các tham số quan trọng:
+### Bước 2: Chuẩn bị model weights và dữ liệu
+
+Các file lớn không được lưu trong Git. Tải tài nguyên từ [Google Drive của nhóm](https://drive.google.com/drive/folders/1Q4kjK8xg9h7dO16AzeHo5A71DnF5Idr1?hl=vi), sau đó đặt checkpoint U-Net tại:
+
+```text
+weights/UNET_resnet50_road/best_model.pth
+```
+
+MiDaS TFLite sẽ được tải tự động vào `models/midasModel.tflite` trong lần chạy đầu. Dữ liệu KITTI, Cityscapes và media demo cần được đặt đúng các đường dẫn trong `config/train_config.yaml`.
+
+### Bước 3: Kiểm tra cấu hình hệ thống
+Mở file `config/train_config.yaml` để kiểm tra các tham số quan trọng:
 *   `EVAL.base_threshold`: Đặt ở mức `-2.5` để tối ưu Recall và IoU cho U-Net.
 *   `EVAL.device`: Có thể tùy chọn `'cpu'` hoặc `'cuda'` nếu máy có hỗ trợ GPU Nvidia.
-

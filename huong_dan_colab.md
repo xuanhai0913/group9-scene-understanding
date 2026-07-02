@@ -55,7 +55,7 @@ Di chuyển vào thư mục code và cài đặt các package phụ thuộc:
 ```
 
 ### Ô số 4: Thực thi Pipeline xử lý video ẩn danh (Headless) và Lưu video đầu ra
-Chạy tập lệnh chính để thực hiện nhận diện làn đường, phát hiện phương tiện, đo khoảng cách và ghi video thành phẩm. 
+Chạy tập lệnh chính để thực hiện nhận diện làn đường, phát hiện phương tiện, ước lượng gần/xa tương đối và ghi video thành phẩm.
 
 Bạn hãy chọn chạy một trong các chế độ dưới đây tùy theo mục đích demo:
 

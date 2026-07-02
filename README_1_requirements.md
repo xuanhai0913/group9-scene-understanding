@@ -21,5 +21,5 @@ Trong các hệ thống tự hành và hỗ trợ lái xe nâng cao (ADAS), vi�
 *   **Yêu cầu kỹ thuật:** Sử dụng mô hình ước lượng độ sâu thời gian thực để tạo ra bản đồ nhiệt độ sâu tương ứng với các khung hình video.
 
 ### 2.3. Yêu cầu Kết hợp thông tin & Cảnh báo an toàn (Collision Warning)
-*   **Mục tiêu:** Phát hiện các phương tiện đi phía trước (ô tô, xe máy) và theo dõi khoảng cách thực tế của chúng đối với xe chủ.
-*   **Quy tắc cảnh báo:** Nếu phương tiện di chuyển **nằm trong làn đường hiện tại** của xe chủ và khoảng cách **dưới 5 mét**, hệ thống phải ngay lập tức đưa ra cảnh báo nguy hiểm trực quan trên màn hình điều khiển (HUD).
+*   **Mục tiêu:** Phát hiện các phương tiện đi phía trước (ô tô, xe máy) và theo dõi mức gần/xa tương đối của chúng đối với xe chủ.
+*   **Quy tắc cảnh báo:** Nếu phương tiện nằm trong làn đường hiện tại và chỉ số khoảng cách tương đối thỏa điều kiện heuristic của demo, hệ thống đưa ra cảnh báo trực quan trên HUD. Chỉ số này không phải khoảng cách theo mét và không dùng cho quyết định an toàn thực tế.
