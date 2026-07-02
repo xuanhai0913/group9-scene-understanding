@@ -1,8 +1,40 @@
+# Python / PyTorch / IDE caches
 __pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
 .DS_Store
+Thumbs.db
+.vscode/
+.idea/
 .venv/
-data/raw/
-outputs/
-*.pyc
-*.zip
+.antigravityignore
 
+# Large data/dataset directories (Keep local but untrack)
+data/kitti/
+data/cityscapes/
+data/eval_images/
+data/test_images/
+data/demo_results/
+data/sample_videos/
+outputs/
+
+# Large model weights/binaries
+weights/
+models/midasModel.tflite
+*.pth
+*.pt
+*.pkl
+*.h5
+
+# Large media files
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# Large archives
+*.zip
+*.rar
+*.7z
+*.tar.gz
