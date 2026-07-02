@@ -1,0 +1,61 @@
+DATASET:
+  hard_augs: true
+  orig_size:
+  - 1024
+  - 2048
+  resize:
+  - 384
+  - 768
+  select_classes:
+  - road
+  - sky
+  - car
+  train_on_cats: false
+EVAL:
+  activate: false
+  base_threshold: 0.0
+  device: cuda
+  drop_clusters: 70
+  eval_images_path: ./data/eval_images
+  images_morphing: true
+  model_path: ./weights/UNET_resnet50_cityscapes/best_model.pth
+  test_images_path: ./data/test_images
+  test_mode: false
+MODEL:
+  backbone: resnet50
+  mode: UNET
+  num_classes: 4
+  unet_res_blocks_decoder: false
+TARGET: cityscapes
+TRAINING:
+  accumulation_batches: 1
+  activate: true
+  base_threshold: 0.0
+  batch_size: 8
+  bce_loss_weight: 0.8
+  class_weights:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.1
+  devices_ids:
+  - 0
+  freeze_n_iters: 0
+  key_metric: dice
+  load_checkpoint: ''
+  load_optimizer_state: false
+  lr: 0.001
+  model_path: ./weights/UNET_resnet50_cityscapes
+  num_epochs: 30
+  scheduler_patience: 3
+  weights_decay: 0.0
+PATHS:
+  CITYSCAPES:
+    path_img: ./data/cityscapes/leftImg8bit
+    path_masks: ./data/cityscapes/gtFine/gtFine
+    test_root_path: ./data/cityscapes/leftImg8bit/test
+    train_root_path: ./data/cityscapes/leftImg8bit/train
+    val_cities:
+    - ulm
+    - bremen
+    - aachen
