@@ -1,0 +1,69 @@
+DATASET:
+  hard_augs: true
+  orig_size:
+  - 375
+  - 1242
+  resize:
+  - 384
+  - 1280
+  select_classes: []
+  train_on_cats: true
+EVAL:
+  activate: false
+  base_threshold: -2.5
+  device: cpu
+  drop_clusters: 70
+  eval_images_path: ./data/eval_images
+  images_morphing: true
+  model_path: ./weights/UNET_resnet50_road/best_model.pth
+  test_images_path: ./data/test_images
+  test_mode: false
+MODEL:
+  backbone: resnet50
+  mode: UNET
+  num_classes: 1
+  unet_res_blocks_decoder: false
+PATHS:
+  CITYSCAPES:
+    path_img: ./data/cityscapes/leftImg8bit
+    path_masks: ./data/cityscapes/gtFine/gtFine
+    test_root_path: ./data/cityscapes/leftImg8bit/test
+    train_root_path: ./data/cityscapes/leftImg8bit/train
+    val_cities:
+    - ulm
+    - bremen
+    - aachen
+  KITTI:
+    mode: road
+    path_img: ./data/kitti/training/image_2
+    path_masks: ./data/kitti/training/gt_image_2
+    test_root_path: ./data/kitti/testing/image_2
+    val_frac: 0.2
+TARGET: kitti
+TRAINING:
+  accumulation_batches: 1
+  activate: false
+  base_threshold: 0.0
+  batch_size: 4
+  bce_loss_weight: 0.8
+  class_weights:
+  - 0.125
+  - 0.125
+  - 0.125
+  - 0.125
+  - 0.125
+  - 0.125
+  - 0.125
+  - 0.125
+  devices_ids:
+  - 0
+  - 1
+  freeze_n_iters: 0
+  key_metric: dice
+  load_checkpoint: ''
+  load_optimizer_state: false
+  lr: 0.001
+  model_path: ./weights/UNET_resnet50_road
+  num_epochs: 50
+  scheduler_patience: 3
+  weights_decay: 0.0

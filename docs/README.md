@@ -127,6 +127,15 @@ Repo có 3 skill nội bộ để Agent AI hiểu đúng dự án:
 - `segmentation-depth-implementation`: workflow code/notebook cho segmentation + depth.
 - `ai-workflow-logging`: ghi log quá trình làm việc với Agent AI.
 
+## Mã nguồn tham khảo
+
+Một phần mã semantic segmentation và MiDaS TFLite được điều chỉnh từ hai dự án MIT:
+
+- [gasparian/multiclass-semantic-segmentation](https://github.com/gasparian/multiclass-semantic-segmentation)
+- [ibaiGorordo/Midasv2_1_small-TFLite-Inference](https://github.com/ibaiGorordo/Midasv2_1_small-TFLite-Inference)
+
+Xem đầy đủ thông báo bản quyền tại [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
+
 ## Tên repo
 
 Tên repo chính:
