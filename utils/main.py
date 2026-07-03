@@ -1079,21 +1079,7 @@ try:
                             cv2.line(output_frame, camera_center, (x_center, y_center), color, line_thickness)
                         cv2.circle(output_frame, (x_center, y_center), 4, color, -1)
 
-            # 5. Ve camera (MY CAR) dong radar chuyen dong bat mat (Da tat theo yeu cau cua De tai 2)
-            # car_color = (0, 0, 255) if is_warning else ((0, 165, 255) if cutting_in_tracks else (0, 255, 0))
-            # overlay_car = output_frame.copy()
-            # 
-            # car_radius_outer = max(10, int(20 * (disp_h / 360.0)))
-            # car_radius_inner = max(4, int(8 * (disp_h / 360.0)))
-            # 
-            # cv2.circle(overlay_car, camera_center, car_radius_outer, car_color, -1)
-            # cv2.addWeighted(overlay_car, 0.25, output_frame, 0.75, 0, output_frame)
-            # cv2.circle(output_frame, camera_center, car_radius_inner, car_color, -1)
-            # cv2.circle(output_frame, camera_center, car_radius_inner, (255, 255, 255), 1)
-            # 
-            # my_car_scale = max(0.4, 0.5 * (disp_h / 360.0))
-            # my_car_thickness = max(1, int(2 * (disp_h / 360.0)))
-            # cv2.putText(output_frame, "MY CAR", (camera_center[0] - int(30 * (disp_w / 640.0)), camera_center[1] - int(25 * (disp_h / 360.0))), cv2.FONT_HERSHEY_SIMPLEX, my_car_scale, car_color, my_car_thickness, cv2.LINE_AA)
+            # 5. Ve camera (MY CAR) dong radar chuyen dong bat mat (Da xoa theo yeu cau cua De tai 2)
 
             dashboard = np.hstack((output_frame, view_seg, view_depth))
 
