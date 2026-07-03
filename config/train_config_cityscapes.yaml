@@ -1,5 +1,5 @@
 DATASET:
-  hard_augs: true
+  hard_augs: false
   orig_size:
   - 1024
   - 2048
