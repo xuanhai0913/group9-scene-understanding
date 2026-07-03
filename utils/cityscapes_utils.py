@@ -192,14 +192,25 @@ class CityscapesDataset(CustomDataset):
     def __getitem__(self, idx):
         image_id = self.data_set[idx]    
         img = open_img(image_id[0])
+        
+        # Resize image to self.orig_size to speed up augmentations and data loading
+        if self.orig_size is not None:
+            import cv2
+            img = cv2.resize(img, (self.orig_w, self.orig_h), interpolation=cv2.INTER_LINEAR)
+            
         if self.phase != "test":
             labelIds = open_img(image_id[1])
+            if self.orig_size is not None:
+                import cv2
+                labelIds = cv2.resize(labelIds, (self.orig_w, self.orig_h), interpolation=cv2.INTER_NEAREST)
             mask = self.label_encoder.make_ohe(labelIds, mode="catId" if self.train_on_cats else "trainId")
             img, mask = self.transformer(image=img, mask=mask).values()
         else:
             img = self.transformer(image=img)["image"]
+            
         if self.resize is not None:
             img = self.final_resizing(image=img)["image"]
+            
         if self.phase != "test":
             img, mask = ToTensorV2()(image=img, mask=mask).values()
             mask = mask.permute(2, 0, 1) # N_CLASSESxHxW
