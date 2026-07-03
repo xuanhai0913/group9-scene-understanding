@@ -833,6 +833,8 @@ try:
             is_warning = warn_above or warn_below
 
             # (Da xoa EGO-FRONT BOUNDARY va duong ranh gioi theo yeu cau cua De tai 2)
+            annot_scale = max(0.35, 0.45 * (disp_h / 360.0))
+            annot_thickness = max(1, int(1.5 * (disp_h / 360.0)))
 
             disp_pt_left_bottom = (int(pt_left_bottom[0] * scale_x), int(pt_left_bottom[1] * scale_y)) if pt_left_bottom else None
             disp_pt_left_top = (int(pt_left_top[0] * scale_x), int(pt_left_top[1] * scale_y)) if pt_left_top else None
