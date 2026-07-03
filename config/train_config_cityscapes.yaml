@@ -46,7 +46,7 @@ TRAINING:
   - 0
   freeze_n_iters: 0
   key_metric: dice
-  load_checkpoint: ''
+  load_checkpoint: '/content/drive/MyDrive/BTL_XLA/weights/UNET_resnet50_cityscapes/best_model.pth'
   load_optimizer_state: false
   lr: 0.001
   model_path: /content/drive/MyDrive/BTL_XLA/weights/UNET_resnet50_cityscapes
