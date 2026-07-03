@@ -832,13 +832,7 @@ try:
             warn_below = dist_below is not None and dist_below < 5.0
             is_warning = warn_above or warn_below
 
-            # 1. Ve duong ranh gioi mui xe va duong phan lan ky thuat so
-            annot_scale = max(0.35, 0.45 * (disp_h / 360.0))
-            annot_thickness = max(1, int(1.5 * (disp_h / 360.0)))
-
-            for x in range(0, disp_w, 20):
-                cv2.line(output_frame, (x, camera_center[1]), (min(x + 10, disp_w), camera_center[1]), (255, 255, 255), 1)
-            cv2.putText(output_frame, "EGO-FRONT BOUNDARY", (15, camera_center[1] - 6), cv2.FONT_HERSHEY_SIMPLEX, annot_scale, (255, 255, 255), annot_thickness, cv2.LINE_AA)
+            # (Da xoa EGO-FRONT BOUNDARY va duong ranh gioi theo yeu cau cua De tai 2)
 
             disp_pt_left_bottom = (int(pt_left_bottom[0] * scale_x), int(pt_left_bottom[1] * scale_y)) if pt_left_bottom else None
             disp_pt_left_top = (int(pt_left_top[0] * scale_x), int(pt_left_top[1] * scale_y)) if pt_left_top else None
@@ -1046,13 +1040,7 @@ try:
                         cv2.rectangle(output_frame, (xmin, y_label - h_label - 4), (xmin + w_label + 10, y_label + 4), color, label_border_thickness)
                     cv2.putText(output_frame, label_text, (xmin + 5, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
                     
-                    if track['type'] in ['vehicle', 'human'] and (track['is_in_lane'] or is_cutting_in):
-                        line_thickness = thickness if (is_danger or is_cutting_in) else max(1, thickness - 1)
-                        if is_lost:
-                            draw_dashed_line(output_frame, camera_center, (x_center, y_center), color, line_thickness)
-                        else:
-                            cv2.line(output_frame, camera_center, (x_center, y_center), color, line_thickness)
-                        cv2.circle(output_frame, (x_center, y_center), 4, color, -1)
+                    # (Da xoa duong noi camera den xe va cham/lan duong theo yeu cau cua De tai 2)
 
             # 5. Ve camera (MY CAR) dong radar chuyen dong bat mat (Da xoa theo yeu cau cua De tai 2)
 
