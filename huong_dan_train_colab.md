@@ -43,26 +43,22 @@ drive.mount('/content/drive')
 !unzip -q "/content/drive/My Drive/BTL_XLA/project.zip" -d "/content/"
 ```
 
-### Cell 3: Giải nén tập dữ liệu Cityscapes vào đúng thư mục dự án
-Chúng ta sẽ giải nén trực tiếp vào thư mục `data/cityscapes` của dự án trên Colab để huấn luyện đạt tốc độ nhanh nhất:
+### Cell 3: Cài đặt thư viện và tải dữ liệu Cityscapes tự động
+Bạn có thể tải trực tiếp bộ dữ liệu Cityscapes từ trang chủ vào Google Colab với tốc độ siêu tốc (>1Gbps) bằng công cụ tự động đã được tích hợp sẵn:
 ```bash
-# Tạo thư mục đích
-!mkdir -p /content/traffic-scene-understanding-btl/data/cityscapes
-
-# Giải nén ảnh gốc (leftImg8bit)
-!unzip -q "/content/drive/My Drive/BTL_XLA/leftImg8bit_trainvaltest.zip" -d /content/traffic-scene-understanding-btl/data/cityscapes/
-
-# Giải nén nhãn (gtFine)
-!unzip -q "/content/drive/My Drive/BTL_XLA/gtFine_trainvaltest.zip" -d /content/traffic-scene-understanding-btl/data/cityscapes/
-```
-
-### Cell 4: Di chuyển vào thư mục và cài đặt thư viện
-```bash
+# 1. Di chuyển vào thư mục code và cài đặt các thư viện cần thiết
 %cd /content/traffic-scene-understanding-btl
 !pip install -r requirements.txt
+
+# 2. Chạy script tải tự động (Nhập tài khoản và mật khẩu Cityscapes của bạn)
+!python download_cityscapes.py
+
+# 3. Giải nén dữ liệu vào đúng cấu trúc
+!unzip -q data/cityscapes/gtFine_trainvaltest.zip -d data/cityscapes/
+!unzip -q data/cityscapes/leftImg8bit_trainvaltest.zip -d data/cityscapes/
 ```
 
-### Cell 5: Bắt đầu huấn luyện mô hình U-Net đa lớp
+### Cell 4: Bắt đầu huấn luyện mô hình U-Net đa lớp
 Chạy tập lệnh train với cấu hình Cityscapes 4 lớp đã được thiết lập sẵn:
 ```bash
 !python train.py --config_path config/train_config_cityscapes.yaml
