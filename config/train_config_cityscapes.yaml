@@ -52,7 +52,7 @@ TRAINING:
 PATHS:
   CITYSCAPES:
     path_img: ./data/cityscapes/leftImg8bit
-    path_masks: ./data/cityscapes/gtFine/gtFine
+    path_masks: ./data/cityscapes/gtFine
     test_root_path: ./data/cityscapes/leftImg8bit/test
     train_root_path: ./data/cityscapes/leftImg8bit/train
     val_cities:
