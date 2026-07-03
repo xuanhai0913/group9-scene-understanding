@@ -668,7 +668,6 @@ try:
                     
                     if tracker.divider_check_count >= 8:
                         tracker.auto_split_road_detected = True
-                        print("[AUTO-DETECTION] Phat hien dai phan cach cung ben trai. Tu dong bat che do duong doi (full_road = False)!")
 
                 # 3. Thuật toán động theo dõi xe ngược chiều ở làn trái (dự phòng)
                 for tid, track in active_tracks.items():
@@ -689,10 +688,6 @@ try:
                 if tracker.processed_frames_count == 45:
                     if tracker.oncoming_hits_count >= 8:
                         tracker.auto_split_road_detected = True
-                        print("[AUTO-DETECTION] Phat hien xe nguoc chieu tren lan trai. Tu dong bat che do duong 2 chieu (full_road = False)!")
-                    else:
-                        if not getattr(tracker, 'auto_split_road_detected', False):
-                            print("[AUTO-DETECTION] Khong phat hien xe nguoc chieu hay dai phan cach. Duy tri che do duong 1 chieu (full_road = True).")
                                         
             if args.full_road:
                 is_full_road = True
@@ -702,10 +697,8 @@ try:
                 # Mặc định: Tự động nhận diện loại đường dựa vào kết quả quét vạch vàng/xe ngược chiều
                 is_full_road = not getattr(tracker, 'auto_split_road_detected', False)
             
-            if is_full_road:
-                camera_center = (int(disp_w * 0.50), int(disp_h * 0.92))
-            else:
-                camera_center = (int(disp_w * 0.70), int(disp_h * 0.92))
+            # Vi tri camera_center luon dat o tam camera duoi day man hinh theo yeu cau cua De tai 2
+            camera_center = (int(disp_w * 0.50), int(disp_h * 0.92))
             
             path_obstacles_above = []
             path_obstacles_below = []
