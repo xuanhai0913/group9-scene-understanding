@@ -45,7 +45,7 @@ TRAINING:
   load_checkpoint: ''
   load_optimizer_state: false
   lr: 0.001
-  model_path: ./weights/UNET_resnet50_cityscapes
+  model_path: /content/drive/MyDrive/BTL_XLA/weights/UNET_resnet50_cityscapes
   num_epochs: 30
   scheduler_patience: 3
   weights_decay: 0.0
