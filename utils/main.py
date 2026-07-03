@@ -54,6 +54,28 @@ except Exception:
     except Exception:
         pass
 
+def draw_panel_title(img, title_text):
+    h, w = img.shape[:2]
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = max(0.35, 0.4 * (h / 360.0))
+    thickness = max(1, int(1 * (h / 360.0)))
+    (text_w, text_h), _ = cv2.getTextSize(title_text, font, font_scale, thickness)
+    
+    # Top center position coordinates
+    x1 = (w - text_w) // 2 - int(10 * (w / 640.0))
+    y1 = int(10 * (h / 360.0))
+    x2 = (w + text_w) // 2 + int(10 * (w / 640.0))
+    y2 = y1 + text_h + int(10 * (h / 360.0))
+    
+    # Draw white background panel and grey border
+    cv2.rectangle(img, (x1, y1), (x2, y2), (255, 255, 255), -1)
+    cv2.rectangle(img, (x1, y1), (x2, y2), (180, 180, 180), 1)
+    
+    # Draw title text in black
+    text_x = (w - text_w) // 2
+    text_y = y2 - int(5 * (h / 360.0))
+    cv2.putText(img, title_text, (text_x, text_y), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
+
 from MidasDepthEstimation.midasDepthEstimator import midasDepthEstimator as MidasDepthEstimator
 
 # 3. DOC VIDEO GIAO THONG DAU VAO (OPENCV) - Dua parser len dau de cau hinh mo hinh
@@ -568,7 +590,7 @@ try:
             max_h = int(screen_h * 0.6)
             
             # Calculate width for a single panel
-            target_w = max_total_w // 3
+            target_w = max_total_w // 4
             target_h = int(target_w * orig_h / orig_w)
             
             if target_h > max_h:
@@ -577,7 +599,7 @@ try:
             
             disp_w, disp_h = target_w, target_h
             if not args.headless:
-                cv2.resizeWindow(window_name, disp_w * 3, disp_h)
+                cv2.resizeWindow(window_name, disp_w * 4, disp_h)
 
         # Fetch actual window client area dimensions dynamically to adapt to resizing
         try:
@@ -586,21 +608,21 @@ try:
                 if rect is not None and rect[2] > 100 and rect[3] > 100:
                     win_w, win_h = rect[2], rect[3]
                 else:
-                    win_w, win_h = disp_w * 3, disp_h
+                    win_w, win_h = disp_w * 4, disp_h
             else:
-                win_w, win_h = disp_w * 3, disp_h
+                win_w, win_h = disp_w * 4, disp_h
         except Exception:
-            win_w, win_h = disp_w * 3, disp_h
+            win_w, win_h = disp_w * 4, disp_h
 
-        # Preserve the aspect ratio of the 3 panels combined inside the window client area
-        dash_aspect = 3.0 * (orig_w / orig_h)
+        # Preserve the aspect ratio of the 4 panels combined inside the window client area
+        dash_aspect = 4.0 * (orig_w / orig_h)
         win_aspect = win_w / win_h
         
         if win_aspect > dash_aspect:
             disp_h = win_h
             disp_w = int(disp_h * orig_w / orig_h)
         else:
-            disp_w = win_w // 3
+            disp_w = win_w // 4
             disp_h = int(disp_w * orig_h / orig_w)
             
         disp_w = max(160, disp_w)
@@ -624,6 +646,7 @@ try:
             detected_obstacles = result['detected_obstacles']
             
             view_main = cv2.resize(frame, (disp_w, disp_h))
+            view_input_pure = view_main.copy()
             view_seg = cv2.resize(color_mask, (disp_w, disp_h))
             view_depth = cv2.resize(depth_colored_full, (disp_w, disp_h))
             
@@ -1081,15 +1104,25 @@ try:
 
             # 5. Ve camera (MY CAR) dong radar chuyen dong bat mat (Da xoa theo yeu cau cua De tai 2)
 
-            dashboard = np.hstack((output_frame, view_seg, view_depth))
+            panel_input = view_input_pure.copy()
+            panel_seg = view_seg.copy()
+            panel_depth = view_depth.copy()
+            panel_fused = output_frame.copy()
+            
+            draw_panel_title(panel_input, "Input Video Frame")
+            draw_panel_title(panel_seg, "Semantic Segmentation (U-Net)")
+            draw_panel_title(panel_depth, "Depth Estimation (MiDaS)")
+            draw_panel_title(panel_fused, "Fused Scene Understanding Overlay")
+            
+            dashboard = np.hstack((panel_input, panel_seg, panel_depth, panel_fused))
 
         # Centering and showing
         canvas = np.zeros((win_h, win_w, 3), dtype=np.uint8)
         y_offset = max(0, (win_h - disp_h) // 2)
-        x_offset = max(0, (win_w - disp_w * 3) // 2)
+        x_offset = max(0, (win_w - disp_w * 4) // 2)
         
         h_draw = min(disp_h, win_h - y_offset)
-        w_draw = min(disp_w * 3, win_w - x_offset)
+        w_draw = min(disp_w * 4, win_w - x_offset)
         
         if h_draw > 0 and w_draw > 0:
             canvas[y_offset:y_offset+h_draw, x_offset:x_offset+w_draw] = dashboard[:h_draw, :w_draw]
