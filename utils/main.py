@@ -66,6 +66,7 @@ parser.add_argument('--skip_frames', type=int, default=1, help="Chi xu ly moi kh
 parser.add_argument('--save_video', type=str, default="", help="Duong dan de ghi video dau ra (vd: output.mp4)")
 parser.add_argument('--headless', action='store_true', help="Chay khong can hien thi giao dien (rat huu ich tren Google Colab)")
 parser.add_argument('--split_road', action='store_true', help="Ep buoc giam sat chia lan (chi quan sat lan ben phai cua minh, bo qua lan trai)")
+parser.add_argument('--config_path', type=str, default="config/train_config.yaml", help="Duong dan den file config yaml")
 args = parser.parse_args()
 
 video_path = args.video_path
@@ -102,7 +103,7 @@ detection_model = None
 ENABLE_DETECTION = True
 
 # Doc ten backbone va kich thuoc resize tu file train_config.yaml de khoi tao va chay cho khop
-config_path = "config/train_config.yaml"
+config_path = args.config_path
 backbone = "resnet50" # Default
 resize_dim = (640, 192) # Default width, height (from [192, 640])
 base_threshold = -2.5 # Default
