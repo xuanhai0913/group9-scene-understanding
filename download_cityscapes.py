@@ -1,23 +1,32 @@
 import os
 import sys
 import requests
-from getpass import getpass
+
+# Thiet lap ma hoa UTF-8 cho stdout de tranh loi Unicode tren Windows
+if sys.platform.startswith('win'):
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.detach())
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.detach())
+
+# Dinh nghia headers gia lap trinh duyet de tranh bi chan bot
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
 
 def download_file(session, package_id, destination_path):
     download_url = f"https://www.cityscapes-dataset.com/file-handling/?packageID={package_id}"
     
-    print(f"[INFO] Bắt đầu tải package ID {package_id}...")
+    print(f"[INFO] Bat dau tai package ID {package_id}...")
+    sys.stdout.flush()
     
-    # Gửi yêu cầu tải file
-    response = session.get(download_url, stream=True)
+    response = session.get(download_url, headers=HEADERS, stream=True)
     if response.status_code != 200:
-        print(f"[ERROR] Không thể tải file. HTTP Status Code: {response.status_code}")
+        print(f"[ERROR] Khong the tai file. HTTP Status Code: {response.status_code}")
+        sys.stdout.flush()
         return False
         
-    # Lấy dung lượng file nếu có
     total_size = int(response.headers.get('content-length', 0))
     
-    # Ghi file ra ổ đĩa
     with open(destination_path, 'wb') as f:
         downloaded = 0
         for chunk in response.iter_content(chunk_size=1024*1024): # 1MB chunks
@@ -26,63 +35,72 @@ def download_file(session, package_id, destination_path):
                 downloaded += len(chunk)
                 if total_size > 0:
                     percent = (downloaded / total_size) * 100
-                    sys.stdout.write(f"\r[Tải xuống] {percent:.2f}% ({downloaded/(1024*1024):.1f}MB / {total_size/(1024*1024):.1f}MB)")
+                    sys.stdout.write(f"\r[Tai xuong] {percent:.2f}% ({downloaded/(1024*1024):.1f}MB / {total_size/(1024*1024):.1f}MB)")
                     sys.stdout.flush()
                 else:
-                    sys.stdout.write(f"\r[Tải xuống] Đã tải: {downloaded/(1024*1024):.1f}MB")
+                    sys.stdout.write(f"\r[Tai xuong] Da tai: {downloaded/(1024*1024):.1f}MB")
                     sys.stdout.flush()
-    print(f"\n[SUCCESS] Đã lưu thành công tại: {destination_path}")
+    print(f"\n[SUCCESS] Da luu thanh cong tai: {destination_path}")
+    sys.stdout.flush()
     return True
 
 def main():
     print("="*60)
-    print(" CÔNG CỤ TẢI TỰ ĐỘNG BỘ DỮ LIỆU CITYSCAPES TRÊN GOOGLE COLAB")
+    print(" CONG CU TAI TU DONG BO DU LIEU CITYSCAPES")
     print("="*60)
+    sys.stdout.flush()
     
-    # Nhập tài khoản đăng nhập Cityscapes
-    username = input("Nhập tên đăng nhập (User Name hoặc Email) của Cityscapes: ")
-    password = getpass("Nhập mật khẩu Cityscapes (ký tự nhập sẽ ẩn đi): ")
+    username = input("Nhap ten dang nhap (User Name hoac Email) cua Cityscapes: ")
+    password = input("Nhap mat khau Cityscapes (mat khau se hien thi khi nhap tren terminal nay): ")
     
     if not username or not password:
-        print("[ERROR] Tài khoản hoặc mật khẩu không được để trống!")
+        print("[ERROR] Tai khoan hoac mat khau khong duoc de trong!")
+        sys.stdout.flush()
         return
 
-    # Đường dẫn thư mục lưu trữ trên Colab
     dest_dir = "./data/cityscapes"
     os.makedirs(dest_dir, exist_ok=True)
     
-    # Khởi tạo session để lưu cookie đăng nhập
     session = requests.Session()
     login_url = "https://www.cityscapes-dataset.com/login/"
     
-    # Dữ liệu POST để đăng nhập
+    # Buoc 1: Goi GET truoc de khoi tao session va nhan cookie ban dau
+    print("[INFO] Khoi tao phien lam viec...")
+    sys.stdout.flush()
+    session.get(login_url, headers=HEADERS)
+    
     login_data = {
         "username": username,
         "password": password,
         "submit": "Login"
     }
     
-    print("\n[INFO] Đang thực hiện đăng nhập vào hệ thống Cityscapes...")
-    login_response = session.post(login_url, data=login_data)
+    # Buoc 2: Gui POST de dang nhap
+    print("[INFO] Dang thuc hien dang nhap vao he thong Cityscapes...")
+    sys.stdout.flush()
+    login_response = session.post(login_url, data=login_data, headers=HEADERS)
     
-    # Kiểm tra xem có đăng nhập thành công hay không bằng cách check cookie
-    if not any(cookie.name == 'cityscapes_session' for cookie in session.cookies):
-        print("[ERROR] Đăng nhập thất bại! Vui lòng kiểm tra lại tài khoản, mật khẩu hoặc xác nhận kích hoạt email của bạn.")
+    # Buoc 3: Kiem tra dang nhap thanh cong bang cach tim chu "Logout" hoac "logout" trong HTML tra ve
+    if "logout" not in login_response.text.lower():
+        print("[ERROR] Dang nhap that bai! Vui long kiem tra lai tai khoan, mat khau hoac xac nhan kich hoat email cua ban.")
+        sys.stdout.flush()
         return
         
-    print("[SUCCESS] Đăng nhập thành công!")
+    print("[SUCCESS] Dang nhap thanh cong!")
+    sys.stdout.flush()
     
-    # 1. Tải gtFine_trainvaltest.zip (Package ID = 1)
+    # 1. Tai gtFine_trainvaltest.zip (Package ID = 1)
     gt_path = os.path.join(dest_dir, "gtFine_trainvaltest.zip")
     download_file(session, 1, gt_path)
     
-    # 2. Tải leftImg8bit_trainvaltest.zip (Package ID = 3)
+    # 2. Tai leftImg8bit_trainvaltest.zip (Package ID = 3)
     img_path = os.path.join(dest_dir, "leftImg8bit_trainvaltest.zip")
     download_file(session, 3, img_path)
     
     print("\n" + "="*60)
-    print(" HOÀN THÀNH TẢI BỘ DỮ LIỆU CITYSCAPES!")
+    print(" HOAN THANH TAI BO DU LIEU CITYSCAPES!")
     print("="*60)
+    sys.stdout.flush()
 
 if __name__ == "__main__":
     main()
