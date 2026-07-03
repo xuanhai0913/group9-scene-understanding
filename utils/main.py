@@ -182,62 +182,14 @@ if os.path.exists(unet_weights_path):
         
     unet_model.eval()
     
-    if num_classes == 1:
-        if ENABLE_DETECTION:
-            print("[INFO] Day la mo hinh phan doan duong nhi phan (1 lop). Nap mo hinh object detection de phat hien phuong tien...")
-            if args.high_acc:
-                try:
-                    from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
-                    detection_model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(device)
-                    print("[INFO] Da nap Faster R-CNN ResNet50 FPN do chinh xac cao.")
-                except Exception as e:
-                    try:
-                        from torchvision.models.detection import ssd300_vgg16, SSD300_VGG16_Weights
-                        detection_model = ssd300_vgg16(weights=SSD300_VGG16_Weights.DEFAULT).to(device)
-                    except Exception as e2:
-                        from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-                        detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
-            else:
-                try:
-                    from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-                    detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
-                except:
-                    from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn
-                    detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(pretrained=True).to(device)
-            detection_model.eval()
-        else:
-            print("[INFO] Day la mo hinh nhi phan. Bo qua nap Faster R-CNN theo thiet lap ENABLE_DETECTION = False.")
+    # Da xoa hoan toan Faster R-CNN / SSD vi De tai 2 trich xuat bounding box xe truc tiep tu mat na U-Net
+    detection_model = None
 else:
     unet_model = Unet(num_classes=8, encoder_name=backbone).to(device)
     print(f"[WARNING] Chua co file trong so {unet_weights_path} trong thu muc 'weights'.")
     print("[WARNING] He thong se tu dong kich hoat Che do Mo phong Thong minh (Simulated Demo Mode) de minh hoa BTL.")
     use_fallback_detection = True
-    
-    if ENABLE_DETECTION:
-        if args.high_acc:
-            print("[INFO] Dang nap mo hinh nhan dien do chinh xac cao Faster R-CNN ResNet50 FPN (Co the chay cham hon tren CPU)...")
-            try:
-                from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
-                detection_model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(device)
-            except Exception as e:
-                try:
-                    from torchvision.models.detection import ssd300_vgg16, SSD300_VGG16_Weights
-                    detection_model = ssd300_vgg16(weights=SSD300_VGG16_Weights.DEFAULT).to(device)
-                except Exception as e2:
-                    print(f"[ERROR] Loi khi nap model high_acc: {e2}. Quay lai Faster RCNN MobileNet.")
-                    from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-                    detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
-        else:
-            print("[INFO] Dang nap mo hinh nhan dien thoi gian thuc Faster RCNN MobileNet...")
-            try:
-                from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-                detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
-            except:
-                from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn
-                detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(pretrained=True).to(device)
-        detection_model.eval()
-    else:
-        print("[INFO] Che do Mo phong. Bo qua nap Faster R-CNN theo thiet lap ENABLE_DETECTION = False.")
+    detection_model = None
 
 # 2. KHOI TAO MO HINH DEPTH ESTIMATION (MiDaS TFLite cua ibaiGorordo)
 try:
