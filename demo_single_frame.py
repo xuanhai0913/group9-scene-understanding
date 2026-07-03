@@ -9,12 +9,17 @@ from MidasDepthEstimation.midasDepthEstimator import midasDepthEstimator as Mida
 from utils.utils import load_train_config
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Demo single frame")
+    parser.add_argument('--config_path', type=str, default="config/train_config.yaml", help="Path to config file")
+    args = parser.parse_args()
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[INFO] Khoi chay demo single frame tren: {device}")
 
     # 1. KHOI TAO CAC DUONG DAN MO HINH
     unet_weights_path = "weights/UNET_resnet50_road/best_model.pth"
-    config_path = "config/train_config.yaml"
+    config_path = args.config_path
     
     backbone = "resnet50"
     resize_dim = (640, 192) # width, height (from [192, 640])

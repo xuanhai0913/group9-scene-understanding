@@ -297,6 +297,7 @@ def main():
     parser = argparse.ArgumentParser(description="Demo pipeline hieu ngu canh giao thong tren mot hoac nhieu anh mau.")
     parser.add_argument('--image_path', type=str, default="", help="Duong dan den 1 anh hoac thu muc chua anh. Neu de trong se tu lay 3 anh tu KITTI.")
     parser.add_argument('--output_dir', type=str, default="outputs", help="Thu muc luu ket qua dau ra.")
+    parser.add_argument('--config_path', type=str, default="config/train_config.yaml", help="Path to config file")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -332,7 +333,7 @@ def main():
         return
 
     # 3. Nạp cấu hình từ train_config.yaml
-    config_path = "config/train_config.yaml"
+    config_path = args.config_path
     unet_weights_path = "weights/UNET_resnet50_road/best_model.pth"
     backbone = "resnet50"
     resize_dim = (640, 192)
