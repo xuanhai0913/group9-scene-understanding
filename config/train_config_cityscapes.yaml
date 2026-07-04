@@ -18,7 +18,7 @@ EVAL:
   drop_clusters: 70
   eval_images_path: ./data/eval_images
   images_morphing: true
-  model_path: ./weights/UNET_resnet50_cityscapes/best_model.pth
+  model_path: /content/drive/MyDrive/BTL_XLA/weights/UNET_resnet50_cityscapes/best_model.pth
   test_images_path: ./data/test_images
   test_mode: false
 MODEL:
