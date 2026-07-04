@@ -71,6 +71,9 @@ if __name__ == "__main__":
     )
 
     device = torch.device(EVAL["device"])
+    if device.type == "cuda" and not torch.cuda.is_available():
+        device = torch.device("cpu")
+        print("[INFO] CUDA is not available on this machine. Falling back to CPU.")
     checkpoint_path = EVAL["model_path"]
     
     if not os.path.exists(checkpoint_path):
@@ -212,8 +215,8 @@ if __name__ == "__main__":
             # Add here image+mask morphing
             orig_image = open_img(image_id[0])
             alpha = 0.5
-            if (TARGET == "kitti") and (orig_image.shape[:2] != pic.shape[:2]):
-                orig_image = cv2.resize(orig_image, (DATASET["orig_size"][1], DATASET["orig_size"][0]), cv2.INTER_LANCZOS4)
+            if orig_image.shape[:2] != pic.shape[:2]:
+                orig_image = cv2.resize(orig_image, (pic.shape[1], pic.shape[0]), cv2.INTER_LANCZOS4)
             pic = cv2.addWeighted(orig_image, (1 - alpha), pic, alpha, 0)
 
         img_filename = os.path.basename(image_id[0])
