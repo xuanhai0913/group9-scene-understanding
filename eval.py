@@ -36,6 +36,48 @@ if __name__ == "__main__":
 
     global_start = time.time()
 
+    # Determine device and load checkpoint first to inspect class structure
+    device = torch.device(EVAL["device"])
+    if device.type == "cuda" and not torch.cuda.is_available():
+        device = torch.device("cpu")
+        print("[INFO] CUDA is not available on this machine. Falling back to CPU.")
+    checkpoint_path = EVAL["model_path"]
+    
+    if not os.path.exists(checkpoint_path):
+        # Tự động tìm đường dẫn fallback nếu không tìm thấy file theo config
+        alternatives = [
+            "weights/UNET_resnet50_cityscapes/best_model.pth",
+            "./weights/UNET_resnet50_cityscapes/best_model.pth",
+            "weights/UNET_resnet50_road/best_model.pth",
+            "./weights/UNET_resnet50_road/best_model.pth"
+        ]
+        for alt in alternatives:
+            if os.path.exists(alt):
+                checkpoint_path = alt
+                print(f"[INFO] Tu dong chuyen huong checkpoint ve: {alt}")
+                break
+                
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
+        
+    state = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    state_dict = state.get("state_dict", state)
+    
+    # Inspect number of classes
+    num_classes = MODEL["num_classes"]
+    if "final.weight" in state_dict:
+        num_classes = state_dict["final.weight"].shape[0]
+        print(f"[INFO] Detected num_classes from checkpoint: {num_classes}")
+
+    # Automatically match train_on_cats to the checkpoint's classes
+    if TARGET == "cityscapes":
+        if num_classes == 4:
+            DATASET["train_on_cats"] = False
+            print("[INFO] Overriding train_on_cats to False to match 4-class checkpoint.")
+        elif num_classes == 8:
+            DATASET["train_on_cats"] = True
+            print("[INFO] Overriding train_on_cats to True to match 8-class checkpoint.")
+
     if not EVAL["test_mode"]:
 
         if TARGET == "kitti":
@@ -69,38 +111,6 @@ if __name__ == "__main__":
         pin_memory=True,
         shuffle=True,   
     )
-
-    device = torch.device(EVAL["device"])
-    if device.type == "cuda" and not torch.cuda.is_available():
-        device = torch.device("cpu")
-        print("[INFO] CUDA is not available on this machine. Falling back to CPU.")
-    checkpoint_path = EVAL["model_path"]
-    
-    if not os.path.exists(checkpoint_path):
-        # Tự động tìm đường dẫn fallback nếu không tìm thấy file theo config
-        alternatives = [
-            "weights/UNET_resnet50_cityscapes/best_model.pth",
-            "./weights/UNET_resnet50_cityscapes/best_model.pth",
-            "weights/UNET_resnet50_road/best_model.pth",
-            "./weights/UNET_resnet50_road/best_model.pth"
-        ]
-        for alt in alternatives:
-            if os.path.exists(alt):
-                checkpoint_path = alt
-                print(f"[INFO] Tu dong chuyen huong checkpoint ve: {alt}")
-                break
-                
-    if not os.path.exists(checkpoint_path):
-        raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
-        
-    state = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    state_dict = state.get("state_dict", state)
-    
-    # Inspect number of classes
-    num_classes = MODEL["num_classes"]
-    if "final.weight" in state_dict:
-        num_classes = state_dict["final.weight"].shape[0]
-        print(f"[INFO] Detected num_classes from checkpoint: {num_classes}")
 
     model = None
     if MODEL["mode"] == "UNET":

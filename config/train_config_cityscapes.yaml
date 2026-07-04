@@ -10,7 +10,7 @@ DATASET:
   - road
   - sky
   - car
-  train_on_cats: true
+  train_on_cats: false
 EVAL:
   activate: false
   base_threshold: 0.0
