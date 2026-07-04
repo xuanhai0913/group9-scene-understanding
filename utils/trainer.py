@@ -186,50 +186,6 @@ class BCEDiceLoss:
 
         return loss
 
-class FocalDiceLoss:
-    """
-    Focal Loss + Dice Loss for multi-class segmentation with class balancing.
-    """
-    def __init__(self, focal_weight=0.8, alpha=0.25, gamma=2.0, class_weights=None, eps=1e-7, smooth=1e-5):
-        self.focal_weight = focal_weight
-        self.alpha = alpha
-        self.gamma = gamma
-        self.class_weights = class_weights
-        self.eps = eps
-        self.smooth = smooth
-
-    def __call__(self, logits, true):
-        true = true.to(logits.dtype)
-        batch_size, num_classes = logits.shape[:2]
-        
-        # 1. Focal Loss
-        p = torch.sigmoid(logits)
-        ce_loss = F.binary_cross_entropy_with_logits(logits, true, reduction="none")
-        p_t = p * true + (1 - p) * (1 - true)
-        focal = ce_loss * ((1 - p_t) ** self.gamma)
-        if self.alpha >= 0:
-            alpha_t = self.alpha * true + (1 - self.alpha) * (1 - true)
-            focal = alpha_t * focal
-        focal_loss = focal.mean()
-        
-        # 2. Dice Loss
-        dice_loss = 0.
-        for c in range(num_classes):
-            iflat = p[:, c,...].view(batch_size, -1)
-            tflat = true[:, c,...].view(batch_size, -1)
-            intersection = (iflat * tflat).sum()
-            
-            # Apply class weights if available
-            w = self.class_weights[c] if self.class_weights is not None else 1.0
-            class_dice = 1.0 - ((2. * intersection + self.smooth) / (iflat.sum() + tflat.sum() + self.smooth + self.eps))
-            dice_loss += w * class_dice
-            
-        dice_loss = dice_loss / num_classes
-        
-        # Combine
-        return self.focal_weight * focal_loss + (1.0 - self.focal_weight) * dice_loss
-
-
 def fix_multigpu_chkpt_names(state_dict, drop=False):
     """ fix the DataParallel caused problem with keys names """
     new_state_dict = {}
@@ -247,7 +203,7 @@ class Trainer(object):
     
     __params = ('num_workers', 'class_weights', 'accumulation_batches',
                 'lr', 'weights_decay', 'base_threshold', 'scheduler_patience', 'activate',
-                'freeze_n_iters', 'bce_loss_weight', 'key_metric', 'loss_type')
+                'freeze_n_iters', 'bce_loss_weight', 'key_metric')
     
     def __init__(self, model=None, image_dataset=None, optimizer=None, **kwargs):
 
@@ -294,24 +250,8 @@ class Trainer(object):
         self.start_epoch = 0
 
         self.image_dataset = image_dataset
-        
-        # Check loss type
-        loss_type = getattr(self, "loss_type", "bce_dice")
-        if loss_type == "focal_dice":
-            self.criterion = FocalDiceLoss(
-                focal_weight=self.bce_loss_weight,
-                class_weights=self.class_weights,
-                eps=1e-7,
-                smooth=1e-5
-            )
-            logging.info("[INFO] Trainer using FocalDiceLoss instead of BCEDiceLoss.")
-        else:
-            self.criterion = BCEDiceLoss(
-                bce_weight=self.bce_loss_weight,
-                class_weights=self.class_weights,
-                threshold=self.base_threshold,
-                activate=self.activate
-            )
+        self.criterion = BCEDiceLoss(bce_weight=self.bce_loss_weight, class_weights=self.class_weights, 
+                                     threshold=self.base_threshold, activate=self.activate)
         self.optimizer = optimizer(self.net.parameters(), lr=self.lr)
         self.scheduler = ReduceLROnPlateau(self.optimizer, mode="min", patience=self.scheduler_patience)
         
@@ -322,10 +262,7 @@ class Trainer(object):
         self.meter = Meter(self.model_path, self.base_threshold)
 
         if self.load_checkpoint:
-            if os.path.exists(self.load_checkpoint):
-                self.load_model(ckpt_name=self.load_checkpoint)
-            else:
-                logging.warning(f"[WARNING] Checkpoint not found at {self.load_checkpoint}, training from scratch.")
+            self.load_model(ckpt_name=self.load_checkpoint)
 
         self.accumulation_steps = self.batch_size * self.accumulation_batches
 

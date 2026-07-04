@@ -33,16 +33,15 @@ TRAINING:
   base_threshold: 0.0
   batch_size: 8
   bce_loss_weight: 0.8
-  loss_type: "focal_dice"
   class_weights:
-  - 0.5
-  - 0.5
-  - 1.0
-  - 2.0
   - 1.0
   - 1.0
-  - 2.5
-  - 1.5
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
   devices_ids:
   - 0
   freeze_n_iters: 0
