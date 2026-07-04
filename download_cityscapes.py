@@ -97,8 +97,19 @@ def main():
     img_path = os.path.join(dest_dir, "leftImg8bit_trainvaltest.zip")
     download_file(session, 3, img_path)
     
+    print("\n[INFO] Bat dau giai nen gtFine_trainvaltest.zip...")
+    sys.stdout.flush()
+    import zipfile
+    with zipfile.ZipFile(gt_path, 'r') as zip_ref:
+        zip_ref.extractall(dest_dir)
+        
+    print("[INFO] Bat dau giai nen leftImg8bit_trainvaltest.zip (Co the mat vai phut)...")
+    sys.stdout.flush()
+    with zipfile.ZipFile(img_path, 'r') as zip_ref:
+        zip_ref.extractall(dest_dir)
+        
     print("\n" + "="*60)
-    print(" HOAN THANH TAI BO DU LIEU CITYSCAPES!")
+    print(" HOAN THANH TAI VA GIAI NEN BO DU LIEU CITYSCAPES!")
     print("="*60)
     sys.stdout.flush()
 
