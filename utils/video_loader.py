@@ -29,12 +29,12 @@ def get_video_path_interactive(project_root):
     for idx, path in enumerate(files):
         filename = os.path.basename(path)
         desc = ""
-        if "ho-chi-minh" in filename.lower():
-            desc = " (Kẹt xe TP.HCM - Video 1)"
-        elif "hanoi" in filename.lower():
-            desc = " (Xa lộ Xa Lộ Hà Nội - Video 2)"
-        elif "video3lightneed" in filename.lower():
-            desc = " (Đèn tín hiệu giao thông - Video 3)"
+        if "ho-chi-minh" in filename.lower() or "video1" in filename.lower():
+            desc = " (Video 1 - Camera CCTV: Kẹt xe TP. Hồ Chí Minh)"
+        elif "hanoi" in filename.lower() or "video2" in filename.lower():
+            desc = " (Video 2 - Camera CCTV: Xa lộ Hà Nội)"
+        elif "dashcam" in filename.lower() or "video3" in filename.lower() or "lightneed" in filename.lower():
+            desc = " (Video 3 - Dashcam: Camera Người Lái Xe - Đèn Tín Hiệu)"
         elif any(filename.lower().endswith(ext.replace("*", "")) for ext in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]):
             desc = " (Ảnh tĩnh)"
         print(f"  [{idx + 1}] {filename}{desc}")
