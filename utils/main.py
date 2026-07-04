@@ -379,7 +379,12 @@ class InferenceThread(threading.Thread):
                         seg_mask_full[seg_mask_unet == 1] = 1
                     else:
                         seg_mask_full = seg_mask_unet
-
+                        
+                    # Filter out false positive vehicle (class 7) and human (class 6) segmentations in the trees and sky
+                    sky_cutoff = int(orig_h * 0.48)
+                    seg_mask_full[0:sky_cutoff, :][seg_mask_full[0:sky_cutoff, :] == 7] = 0
+                    seg_mask_full[0:sky_cutoff, :][seg_mask_full[0:sky_cutoff, :] == 6] = 0
+                    
                     detected_obstacles = []
                     if self.detection_model is not None:
                         det_w, det_h = 640, 360

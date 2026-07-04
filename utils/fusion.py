@@ -180,10 +180,14 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
         # Khôi phục Xe (Vehicle)
         vehicle_mask = (seg_mask_full == vehicle_class).astype(np.uint8)
         contours, _ = cv2.findContours(vehicle_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        sky_cutoff = int(depth_map.shape[0] * 0.48)
         for contour in contours:
             area = cv2.contourArea(contour)
             if area > 1000:
                 x, y, w, h = cv2.boundingRect(contour)
+                # Bỏ qua các khung bao nằm trên đường chân trời (trong tán cây, bầu trời)
+                if y + h < sky_cutoff:
+                    continue
                 overlap = False
                 for det in fused_detections:
                     if det['type'] == 'vehicle':
@@ -210,6 +214,9 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
                 area = cv2.contourArea(contour)
                 if area > 500:
                     x, y, w, h = cv2.boundingRect(contour)
+                    # Bỏ qua người đi bộ phát hiện nhầm trên tán cây/bầu trời
+                    if y + h < sky_cutoff:
+                        continue
                     overlap = False
                     for det in fused_detections:
                         if det['type'] == 'human':
@@ -222,6 +229,7 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
                         if box_depth.size > 0:
                             max_d = np.percentile(box_depth, 95)
                             fused_detections.append({
+                                
                                 'box': (x, y, x + w, y + h),
                                 'depth': max_d,
                                 'type': 'human',
