@@ -167,7 +167,7 @@ if __name__ == "__main__":
 
 
 
-    eval_classes = MODEL["num_classes"]
+    eval_classes = num_classes if TARGET == "cityscapes" else MODEL["num_classes"]
     if not EVAL["test_mode"]:
         meter = Meter(base_threshold=EVAL["base_threshold"], get_class_metric=True)
         class_counts = {c: {"tp": 0, "fp": 0, "fn": 0, "tn": 0} for c in range(eval_classes)}
