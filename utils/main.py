@@ -652,28 +652,8 @@ try:
                         tracker.auto_split_road_detected = True
                         print("[AUTO-DETECTION] Phat hien vach ke duong mau vang (vach phan chia 2 chieu). Tu dong bat che do duong 2 chieu (full_road = False)!")
                 
-                # 2. Kiểm tra dải phân cách cứng (cây xanh/bê tông) ở biên trái để tự động nhận dạng đường đôi
-                if tracker.processed_frames_count <= 30:
-                    try:
-                        y1_div = int(orig_h * 0.55)
-                        y2_div = int(orig_h * 0.85)
-                        x1_div = int(orig_w * 0.12)
-                        x2_div = int(orig_w * 0.42)
-                        
-                        left_strip = seg_mask_full[y1_div:y2_div, x1_div:x2_div]
-                        if left_strip.size > 0:
-                            road_class_idx = 0 if (unet_model is not None and getattr(unet_model, "num_classes", 8) == 4) else 1
-                            sky_class_idx = 1 if (unet_model is not None and getattr(unet_model, "num_classes", 8) == 4) else 5
-                            
-                            # Tính số điểm không phải là đường và bầu trời (tức là dải phân cách cứng, vỉa hè hoặc cây cỏ)
-                            divider_pixels = np.sum((left_strip != road_class_idx) & (left_strip != sky_class_idx))
-                            if divider_pixels > (left_strip.size * 0.15):
-                                tracker.divider_check_count += 1
-                    except Exception:
-                        pass
-                    
-                    if tracker.divider_check_count >= 8:
-                        tracker.auto_split_road_detected = True
+                # 2. Kiem tra dai phan cach cung o bien trai (Da lam mo / Vo hieu hoa vi cay xanh ven duong de bi nhan dien nham tren duong pho thuong)
+                pass
 
                 # 3. Thuật toán động theo dõi xe ngược chiều ở làn trái (dự phòng)
                 for tid, track in active_tracks.items():
