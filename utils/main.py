@@ -529,12 +529,12 @@ try:
 
         if disp_w is None:
             if args.headless:
-                # In headless mode (saving video on Colab), use high-resolution panels
-                # Setting single panel width to 960 (or original width if smaller)
-                target_w = min(orig_w, 960)
+                # In headless mode (saving video on Colab), use optimized panels (480 width)
+                # This makes the total width 1920 (Full HD standard), which runs 4x faster and is 4x lighter in file size
+                target_w = min(orig_w, 480)
                 target_h = int(target_w * orig_h / orig_w)
                 disp_w, disp_h = target_w, target_h
-                print(f"[INFO] Running in HEADLESS mode. Panel resolution set to: {disp_w}x{disp_h} (Total dashboard: {disp_w * 4}x{disp_h})")
+                print(f"[INFO] Running in HEADLESS mode. Panel resolution optimized to: {disp_w}x{disp_h} (Total dashboard: {disp_w * 4}x{disp_h})")
             else:
                 try:
                     user32 = ctypes.windll.user32
