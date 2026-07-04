@@ -208,7 +208,7 @@ if not video_path:
     video_path = get_video_path_interactive(project_root)
     if not video_path:
         # Ultimate fallback
-        video_path = "data/sample_videos/video3lightneed.mp4"
+        video_path = "data/sample_videos/video2_dashcam_traffic_lights.mp4"
         print(f"[INFO] Tự động chọn video mặc định: {video_path}")
 is_image_input = any(video_path.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.bmp'])
 if is_image_input:
@@ -216,9 +216,9 @@ if is_image_input:
 else:
     print(f"[INFO] Su dung video cau hinh tu doi so: {video_path}")
 
-# if "video3" in video_path.lower() or "lightneed" in video_path.lower():
+# if "video2" in video_path.lower() or "dashcam" in video_path.lower():
 #     args.full_road = True
-#     print("[INFO] Phat hien video3 (duong 2 chieu). Tu dong bat che do không chia lan (full_road = True)!")
+#     print("[INFO] Phat hien video2 (duong 2 chieu). Tu dong bat che do không chia lan (full_road = True)!")
 
 if is_image_input:
     cap = None

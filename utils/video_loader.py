@@ -31,10 +31,8 @@ def get_video_path_interactive(project_root):
         desc = ""
         if "ho-chi-minh" in filename.lower() or "video1" in filename.lower():
             desc = " (Video 1 - Camera CCTV: Kẹt xe TP. Hồ Chí Minh)"
-        elif "hanoi" in filename.lower() or "video2" in filename.lower():
-            desc = " (Video 2 - Camera CCTV: Xa lộ Hà Nội)"
-        elif "dashcam" in filename.lower() or "video3" in filename.lower() or "lightneed" in filename.lower():
-            desc = " (Video 3 - Dashcam: Camera Người Lái Xe - Đèn Tín Hiệu)"
+        elif "dashcam" in filename.lower() or "video2" in filename.lower() or "lightneed" in filename.lower():
+            desc = " (Video 2 - Dashcam: Camera Người Lái Xe - Đèn Tín Hiệu)"
         elif any(filename.lower().endswith(ext.replace("*", "")) for ext in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]):
             desc = " (Ảnh tĩnh)"
         print(f"  [{idx + 1}] {filename}{desc}")
