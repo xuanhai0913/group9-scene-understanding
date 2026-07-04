@@ -88,6 +88,7 @@ parser.add_argument('--skip_frames', type=int, default=1, help="Chi xu ly moi kh
 parser.add_argument('--save_video', type=str, default="", help="Duong dan de ghi video dau ra (vd: output.mp4)")
 parser.add_argument('--headless', action='store_true', help="Chay khong can hien thi giao dien (rat huu ich tren Google Colab)")
 parser.add_argument('--split_road', action='store_true', help="Ep buoc giam sat chia lan (chi quan sat lan ben phai cua minh, bo qua lan trai)")
+parser.add_argument('--left_ego', action='store_true', help="Thiet lap lan Ego nam ben trai dai phan cach (mac dinh la ben phai)")
 parser.add_argument('--config_path', type=str, default="config/train_config.yaml", help="Duong dan den file config yaml")
 args = parser.parse_args()
 
@@ -675,16 +676,57 @@ try:
                     if tracker.oncoming_hits_count >= 8:
                         tracker.auto_split_road_detected = True
                                         
-            is_hcm_left_lane = "hochiminh" in video_path.lower() or "ho_chi_minh" in video_path.lower() or "44238659" in video_path.lower()
+            # 2. Tự động nhận diện Camera di chuyển (Dashcam) hay đứng yên (CCTV) bằng Luồng quang học (Optical Flow)
+            if not hasattr(tracker, 'camera_movement_samples'):
+                tracker.camera_movement_samples = []
+                tracker.prev_gray_for_flow = None
+                tracker.camera_is_static = False
+                
+            curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            if tracker.prev_gray_for_flow is not None and len(tracker.camera_movement_samples) < 20:
+                try:
+                    # Trích xuất lưới điểm đặc trưng ở nửa trên màn hình (vùng nền tĩnh, tránh xe cộ dưới đường)
+                    h_f, w_f = curr_gray.shape
+                    y_pts = np.linspace(int(h_f * 0.05), int(h_f * 0.35), 4).astype(int)
+                    x_pts = np.linspace(int(w_f * 0.1), int(w_f * 0.9), 8).astype(int)
+                    p0 = []
+                    for py in y_pts:
+                        for px in x_pts:
+                            p0.append([[float(px), float(py)]])
+                    p0 = np.array(p0, dtype=np.float32)
+                    
+                    # Tính toán luồng quang học Lucas-Kanade
+                    p1, st, _ = cv2.calcOpticalFlowPyrLK(tracker.prev_gray_for_flow, curr_gray, p0, None, winSize=(15, 15), maxLevel=2)
+                    good_new = p1[st == 1]
+                    good_old = p0[st == 1]
+                    
+                    if len(good_new) > 0:
+                        displacements = np.linalg.norm(good_new - good_old, axis=1)
+                        tracker.camera_movement_samples.append(np.mean(displacements))
+                except Exception:
+                    pass
+            
+            tracker.prev_gray_for_flow = curr_gray
+            
+            # Sau khi thu thập đủ 15-20 mẫu chuyển động (khoảng 1 giây đầu)
+            if len(tracker.camera_movement_samples) >= 15 and not hasattr(tracker, 'camera_type_decided'):
+                avg_move = np.mean(tracker.camera_movement_samples)
+                # Nếu dịch chuyển trung bình các điểm nền cực kỳ nhỏ (< 0.55 pixel/khung hình) -> Camera đứng yên
+                tracker.camera_is_static = (avg_move < 0.55)
+                tracker.camera_type_decided = True
+                type_str = "CCTV CO DINH" if tracker.camera_is_static else "DASHCAM DI CHUYEN"
+                print(f"[AUTO-DETECTION] Dynamic Optical Flow analysis: mean background displacement = {avg_move:.3f} px/frame. Classified as: {type_str}")
+
+            camera_is_static = getattr(tracker, 'camera_is_static', False)
             
             if args.full_road:
                 is_full_road = True
             elif args.split_road:
                 is_full_road = False
             else:
-                # Đối với video HCM có dải phân cách cứng thật, mặc định tự động chia làn chính xác
-                if is_hcm_left_lane:
-                    is_full_road = False
+                # Nếu tự động phát hiện camera CCTV tĩnh trên cao -> Mặc định chạy giám sát toàn đường
+                if camera_is_static:
+                    is_full_road = True
                 else:
                     is_full_road = not getattr(tracker, 'auto_split_road_detected', False)
             
@@ -712,14 +754,26 @@ try:
                         ], dtype=np.int32)
                         is_in_lane = (cv2.pointPolygonTest(ego_poly_orig, (x_center_orig, y_center_orig), False) >= 0)
                     else:
+                        # Tự động nhận diện hướng làn Ego dựa trên phương tiện gần camera nhất hoặc tham số --left_ego
+                        use_left_ego = args.left_ego
+                        if not use_left_ego and active_tracks:
+                            vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
+                            if vehicles_near:
+                                closest_v = min(vehicles_near, key=lambda t: 1000.0 / (t['depth_history'][-1] + 1e-5))
+                                d_v = 1000.0 / (closest_v['depth_history'][-1] + 1e-5)
+                                if d_v < 15.0:
+                                    vx1, _, vx2, _ = closest_v['box']
+                                    vx_center = (vx1 + vx2) // 2
+                                    if vx_center < w * 0.45:
+                                        use_left_ego = True
+                                        
                         if pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top:
                             x1_l, y1_l = pt_left_bottom
                             x2_l, y2_l = pt_left_top
                             x1_r, y1_r = pt_right_bottom
                             x2_r, y2_r = pt_right_top
-                        elif is_hcm_left_lane:
+                        elif use_left_ego:
                             # Cấu hình làn Ego nằm bên trái dải phân cách cứng (làn xe máy của ta)
-                            # Trục chia làn ở giữa (barrier) nằm ở khoảng x = w * 0.46 đến w * 0.48
                             x1_l, y1_l = int(w * 0.02), int(h * 0.95)
                             x2_l, y2_l = int(w * 0.15), int(h * 0.55)
                             x1_r, y1_r = int(w * 0.46), int(h * 0.95)
