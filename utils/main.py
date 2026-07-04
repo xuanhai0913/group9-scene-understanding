@@ -1099,8 +1099,9 @@ try:
         if not args.headless:
             cv2.imshow("BTL Image Processing - Traffic Scene Understanding Pipeline", canvas)
             
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):
+            wait_time = 0 if is_image_input else 1
+            key = cv2.waitKey(wait_time) & 0xFF
+            if key == ord('q') or is_image_input:
                 break
             elif key == ord('s'):
                 try:
