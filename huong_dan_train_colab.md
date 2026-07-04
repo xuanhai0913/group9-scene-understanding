@@ -1,6 +1,6 @@
 # HƯỚNG DẪN CHI TIẾT HUẤN LUYỆN (TRAIN) MÔ HÌNH U-NET ĐA LỚP TRÊN GOOGLE COLAB
 
-Tài liệu này hướng dẫn bạn từng bước cách đưa dự án, chuẩn bị tập dữ liệu Cityscapes và huấn luyện mô hình U-Net nhận diện **4 lớp (Road, Sky, Car, Background)** trên Google Colab sử dụng GPU.
+Tài liệu này hướng dẫn bạn từng bước cách đưa dự án, chuẩn bị tập dữ liệu Cityscapes và huấn luyện mô hình U-Net nhận diện **8 lớp (Void, Flat/Road, Construction, Object, Nature, Sky, Human, Vehicle)** trên Google Colab sử dụng GPU, tập trung nâng cao chỉ số 3 lớp chính (Road, Sky, Vehicle/Car) theo yêu cầu.
 
 ---
 
@@ -17,7 +17,7 @@ Vì tập dữ liệu Cityscapes rất nặng, bạn nên lưu trữ nó trên G
 ---
 
 ## BƯỚC 2: NÉN VÀ TẢI MÃ NGUỒN LÊN GOOGLE DRIVE
-1. Hãy nén thư mục dự án `traffic-scene-understanding-btl` của bạn (sau khi đã cập nhật file cấu hình Cityscapes mới) thành file `project.zip`.
+1. Hãy nén thư mục dự án `group9-scene-understanding` của bạn (sau khi đã cập nhật file cấu hình Cityscapes mới) thành file `project.zip`.
 2. Tải file `project.zip` này lên thư mục `BTL_XLA` trên Google Drive.
 
 ---
@@ -44,22 +44,18 @@ drive.mount('/content/drive')
 ```
 
 ### Cell 3: Cài đặt thư viện và tải dữ liệu Cityscapes tự động
-Bạn có thể tải trực tiếp bộ dữ liệu Cityscapes từ trang chủ vào Google Colab với tốc độ siêu tốc (>1Gbps) bằng công cụ tự động đã được tích hợp sẵn:
+Bạn có thể tải trực tiếp bộ dữ liệu Cityscapes từ trang chủ vào Google Colab với tốc độ siêu tốc (>1Gbps) bằng công cụ tự động đã được tích hợp sẵn (tự động giải nén):
 ```bash
 # 1. Di chuyển vào thư mục code và cài đặt các thư viện cần thiết
-%cd /content/traffic-scene-understanding-btl
+%cd /content/group9-scene-understanding
 !pip install -r requirements.txt
 
-# 2. Chạy script tải tự động (Nhập tài khoản và mật khẩu Cityscapes của bạn)
+# 2. Chạy script tải tự động và tự động giải nén (Nhập tài khoản và mật khẩu Cityscapes của bạn)
 !python download_cityscapes.py
-
-# 3. Giải nén dữ liệu vào đúng cấu trúc
-!unzip -q data/cityscapes/gtFine_trainvaltest.zip -d data/cityscapes/
-!unzip -q data/cityscapes/leftImg8bit_trainvaltest.zip -d data/cityscapes/
 ```
 
 ### Cell 4: Bắt đầu huấn luyện mô hình U-Net đa lớp
-Chạy tập lệnh train với cấu hình Cityscapes 4 lớp đã được thiết lập sẵn:
+Chạy tập lệnh train với cấu hình Cityscapes 8 lớp đã được thiết lập sẵn (tập trung 3 lớp chính):
 ```bash
 !python train.py --config_path config/train_config_cityscapes.yaml
 ```
@@ -68,7 +64,7 @@ Chạy tập lệnh train với cấu hình Cityscapes 4 lớp đã được thi
 
 ## BƯỚC 5: TẢI TRỌNG SỐ ĐÃ HUẤN LUYỆN VỀ MÁY LOCAL
 1. Sau khi quá trình train hoàn thành (khoảng 2 - 3.5 tiếng), file trọng số tốt nhất sẽ được lưu tại đường dẫn:
-   `traffic-scene-understanding-btl/weights/UNET_resnet50_cityscapes/best_model.pth`.
+   `group9-scene-understanding/weights/UNET_resnet50_cityscapes/best_model.pth`.
 2. Ở thanh công cụ bên trái của Colab, vào mục **Files** -> Tìm đến thư mục `weights/UNET_resnet50_cityscapes/`.
 3. Nhấp vào dấu **3 chấm** bên cạnh file **`best_model.pth`** và chọn **Download** để tải về máy tính cá nhân.
 4. Copy file này bỏ vào đúng thư mục `weights/UNET_resnet50_cityscapes/` trên máy local của bạn để chạy demo thực tế đa lớp!

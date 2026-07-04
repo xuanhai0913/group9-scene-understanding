@@ -9,8 +9,8 @@ Tài liệu này hướng dẫn từng bước (Step-by-step) để bạn đưa 
 Cách đơn giản và ổn định nhất để chạy trên Google Colab là lưu trữ dự án trên Google Drive của bạn:
 
 1. **Nén thư mục dự án**: 
-   * Hãy nén thư mục `traffic-scene-understanding-btl` của bạn thành file `.zip` (ví dụ: `project.zip`).
-   * *Lưu ý*: Hãy đảm bảo đã bao gồm thư mục `weights` (chứa `weights/UNET_resnet50_road/best_model.pth`), thư mục `data/sample_videos` (chứa các video kiểm thử như `video1.mp4`, `video2.mp4`), và thư mục `MidasDepthEstimation`.
+   * Hãy nén thư mục `group9-scene-understanding` (hoặc `traffic-scene-understanding-btl`) của bạn thành file `.zip` (ví dụ: `project.zip`).
+   * *Lưu ý*: Hãy đảm bảo đã bao gồm thư mục `weights` (chứa `weights/UNET_resnet50_cityscapes/best_model.pth`), thư mục `data/sample_videos` (chứa các video kiểm thử như `video1_ho-chi-minh.mov`, `video2_dashcam_traffic_lights.mp4`), và thư mục `MidasDepthEstimation`.
 2. **Tải lên Google Drive**:
    * Mở Google Drive của bạn.
    * Tải file `project.zip` lên một thư mục trên Google Drive (Ví dụ: tạo thư mục tên là `BTL_XLA` rồi tải file zip lên đó).

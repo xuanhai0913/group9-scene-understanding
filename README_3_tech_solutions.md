@@ -6,7 +6,7 @@ Tài liệu này giới thiệu kiến trúc các mô hình học máy và thư 
 
 ## 1. Mô hình phân đoạn làn đường (Road Segmentation Model)
 *   **Mạng nơ-ron:** Sử dụng kiến trúc **U-Net** cải tiến kết hợp với bộ mã hóa (Backbone) là mạng **ResNet-50** đã huấn luyện sẵn.
-*   **Dataset:** Mô hình được tinh chỉnh và huấn luyện trên bộ dữ liệu **KITTI Road Dataset**.
+*   **Dataset:** Mô hình được tinh chỉnh và huấn luyện trên bộ dữ liệu **Cityscapes Dataset** (8 lớp thực tế giao thông đô thị).
 *   **Tối ưu hóa:** Loại bỏ Test Time Augmentation (TTA) để tăng tốc độ suy luận gấp 1.5 lần và áp dụng kỹ thuật tinh chỉnh ngưỡng quyết định (Threshold Tuning) đạt hiệu năng tối ưu trên CPU.
 
 ## 2. Mô hình ước lượng độ sâu đơn sắc (Monocular Depth Model)
