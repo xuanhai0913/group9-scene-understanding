@@ -178,6 +178,7 @@ if os.path.exists(unet_weights_path):
         
     unet_model.eval()
 else:
+    num_classes = 8
     unet_model = Unet(num_classes=8, encoder_name=backbone).to(device)
     print(f"[WARNING] Chua co file trong so {unet_weights_path} trong thu muc 'weights'.")
     print("[WARNING] He thong se tu dong kich hoat Che do Mo phong Thong minh (Simulated Demo Mode) de minh hoa BTL.")
@@ -197,22 +198,27 @@ if not video_path:
         # Ultimate fallback
         video_path = "data/sample_videos/video3lightneed.mp4"
         print(f"[INFO] Tự động chọn video mặc định: {video_path}")
+is_image_input = any(video_path.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.bmp'])
+if is_image_input:
+    print(f"[INFO] Phat hien dau vao la ANH TINH: {video_path}")
 else:
-    print(f"[INFO] Sử dụng video cấu hình từ đối số: {video_path}")
+    print(f"[INFO] Su dung video cau hinh tu doi so: {video_path}")
 
 # if "video3" in video_path.lower() or "lightneed" in video_path.lower():
 #     args.full_road = True
 #     print("[INFO] Phat hien video3 (duong 2 chieu). Tu dong bat che do không chia lan (full_road = True)!")
 
-cap = cv2.VideoCapture(video_path)
-
-if not cap.isOpened():
-    print(f"[WARNING] Khong tim thay video hop le tai thu muc data/sample_videos/")
-    print("[INFO] He thong tu dong chuyen sang su dung Webcam (Device 0) de kiem thu...")
-    cap = cv2.VideoCapture(0)
+if is_image_input:
+    cap = None
+else:
+    cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print("[ERROR] Khong the mo duoc ca video lan Webcam cua may tinh!")
-        exit()
+        print(f"[WARNING] Khong tim thay video hop le tai thu muc data/sample_videos/")
+        print("[INFO] He thong tu dong chuyen sang su dung Webcam (Device 0) de kiem thu...")
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("[ERROR] Khong the mo duoc ca video lan Webcam cua may tinh!")
+            exit()
 
 # Kiem tra neu chay tren video chuot lang de hien thi ban demo MiDaS chuan
 is_midas_demo = "ytsave" in video_path.lower() or "tgadvbd" in video_path.lower()
@@ -440,7 +446,7 @@ input_queue = queue.Queue(maxsize=3)
 result_queue = queue.Queue(maxsize=3)
 
 # Khoi dong VideoReaderThread
-reader_thread = VideoReaderThread(cap, queue_maxsize=3, skip_frames=args.skip_frames)
+reader_thread = VideoReaderThread(cap, queue_maxsize=3, skip_frames=args.skip_frames, is_image_input=is_image_input, video_path=video_path)
 reader_thread.start()
 
 # Khoi dong InferenceThread
@@ -467,7 +473,7 @@ try:
             # Lay ket qua suy luan tu result_queue
             result = result_queue.get(timeout=0.02)
         except queue.Empty:
-            if reader_thread.stopped and reader_thread.queue.empty() and result_queue.empty():
+            if reader_thread.stopped and reader_thread.queue.empty() and result_queue.empty() and inference_thread.stopped:
                 break
             # Neu cua so OpenCV dang mo, van can bat ky de tranh cua so bi treo (waitKey)
             if not args.headless:
@@ -1113,8 +1119,29 @@ try:
                 except Exception as e:
                     print(f"\n[ERROR] Khong the luu anh: {e}")
 
-    # Hoi nguoi dung co muon luu lai khung hinh cuoi cung khi thoat khong
-    if not args.headless:
+    # Tự động lưu ảnh kết quả nếu đầu vào là 1 ảnh tĩnh (hoặc hỏi nếu chạy có giao diện)
+    if is_image_input:
+        try:
+            if 'frame' in locals() and frame is not None:
+                cv2.imwrite("original_image.png", frame)
+                if 'depth_colored_full' in locals() and depth_colored_full is not None:
+                    cv2.imwrite("depth_map.png", depth_colored_full)
+                if 'color_mask' in locals() and color_mask is not None:
+                    seg_overlay = cv2.addWeighted(frame, 0.7, color_mask, 0.3, 0)
+                    cv2.imwrite("segmentation_overlay.png", seg_overlay)
+                    cv2.imwrite("segmentation_color_mask.png", color_mask)
+                if 'output_frame' in locals() and output_frame is not None:
+                    cv2.imwrite("fusion_result.png", output_frame)
+                if 'dashboard' in locals() and dashboard is not None:
+                    cv2.imwrite("dashboard_result.png", dashboard)
+                print("\n" + "="*70)
+                print("[SUCCESS] Dau vao la ANH TINH. Da tu dong luu cac anh ket qua phan tich:")
+                print(" -> original_image.png, depth_map.png, segmentation_overlay.png")
+                print(" -> segmentation_color_mask.png, fusion_result.png, dashboard_result.png")
+                print("="*70)
+        except Exception as e:
+            print(f"[WARNING] Khong the tu dong luu anh tinh: {e}")
+    elif not args.headless:
         try:
             if 'frame' in locals() and frame is not None:
                 print("\n" + "="*70)
@@ -1148,7 +1175,8 @@ finally:
     reader_thread.join(timeout=1.0)
     inference_thread.join(timeout=1.0)
 
-cap.release()
+if cap is not None:
+    cap.release()
 if not args.headless:
     cv2.destroyAllWindows()
 print("[INFO] Chuong trinh ket thuc tot dep.")
