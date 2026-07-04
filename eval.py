@@ -154,9 +154,10 @@ if __name__ == "__main__":
 
 
 
+    eval_classes = MODEL["num_classes"]
     if not EVAL["test_mode"]:
         meter = Meter(base_threshold=EVAL["base_threshold"], get_class_metric=True)
-        class_counts = {c: {"tp": 0, "fp": 0, "fn": 0, "tn": 0} for c in range(num_classes)}
+        class_counts = {c: {"tp": 0, "fp": 0, "fn": 0, "tn": 0} for c in range(eval_classes)}
 
     images_path = EVAL["eval_images_path"] if not EVAL["test_mode"] else EVAL["test_images_path"]
     try:
@@ -178,12 +179,17 @@ if __name__ == "__main__":
             targets = torch.nn.functional.interpolate(targets.float(), size=DATASET["orig_size"], mode='nearest')
 
         outputs = outputs.detach().cpu()
+        
+        # Neu dataset la KITTI (1 lop) nhung model co 8 lop (Cityscapes), ta trich xuat lop "road" (lop 1) de danh gia
+        if outputs.shape[1] == 8 and targets.shape[1] == 1:
+            outputs = outputs[:, 1:2, ...]
+            
         if not EVAL["test_mode"]:
             meter.update("val", targets, outputs)
             # Accumulate TP, TN, FP, FN per class
             preds_bin = (outputs > EVAL["base_threshold"]).float()
             targets_bin = (targets > 0.5).float()
-            for c in range(num_classes):
+            for c in range(eval_classes):
                 preds_c = preds_bin[:, c, ...]
                 targets_c = targets_bin[:, c, ...]
                 
@@ -234,7 +240,7 @@ if __name__ == "__main__":
         print("***** CLASSIFICATION METRICS (Pixel-wise) *****")
         print("="*50)
         
-        for c in range(num_classes):
+        for c in range(eval_classes):
             tp = class_counts[c]["tp"]
             fp = class_counts[c]["fp"]
             fn = class_counts[c]["fn"]
@@ -246,8 +252,8 @@ if __name__ == "__main__":
             recall = tp / (tp + fn + 1e-7)
             f1 = (2 * tp) / (2 * tp + fp + fn + 1e-7)
             
-            class_prefix = f"Class {c}: " if num_classes > 1 else ""
-            if num_classes > 1:
+            class_prefix = f"Class {c}: " if eval_classes > 1 else ""
+            if eval_classes > 1:
                 try:
                     labels_df = image_dataset.label_encoder.cityscapes_labels_df
                     cat = "catId" if DATASET["train_on_cats"] else "trainId"
