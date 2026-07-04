@@ -527,29 +527,37 @@ try:
         orig_h, orig_w = frame.shape[:2]
 
         if disp_w is None:
-            try:
-                user32 = ctypes.windll.user32
-                screen_w = user32.GetSystemMetrics(0)
-                screen_h = user32.GetSystemMetrics(1)
-            except Exception:
-                screen_w = 1280
-                screen_h = 720
-            
-            # Max total width is 75% of screen width to fit nicely
-            max_total_w = int(screen_w * 0.75)
-            max_h = int(screen_h * 0.6)
-            
-            # Calculate width for a single panel
-            target_w = max_total_w // 4
-            target_h = int(target_w * orig_h / orig_w)
-            
-            if target_h > max_h:
-                target_h = max_h
-                target_w = int(target_h * orig_w / orig_h)
-            
-            disp_w, disp_h = target_w, target_h
-            if not args.headless:
-                cv2.resizeWindow(window_name, disp_w * 4, disp_h)
+            if args.headless:
+                # In headless mode (saving video on Colab), use high-resolution panels
+                # Setting single panel width to 960 (or original width if smaller)
+                target_w = min(orig_w, 960)
+                target_h = int(target_w * orig_h / orig_w)
+                disp_w, disp_h = target_w, target_h
+                print(f"[INFO] Running in HEADLESS mode. Panel resolution set to: {disp_w}x{disp_h} (Total dashboard: {disp_w * 4}x{disp_h})")
+            else:
+                try:
+                    user32 = ctypes.windll.user32
+                    screen_w = user32.GetSystemMetrics(0)
+                    screen_h = user32.GetSystemMetrics(1)
+                except Exception:
+                    screen_w = 1280
+                    screen_h = 720
+                
+                # Max total width is 75% of screen width to fit nicely
+                max_total_w = int(screen_w * 0.75)
+                max_h = int(screen_h * 0.6)
+                
+                # Calculate width for a single panel
+                target_w = max_total_w // 4
+                target_h = int(target_w * orig_h / orig_w)
+                
+                if target_h > max_h:
+                    target_h = max_h
+                    target_w = int(target_h * orig_w / orig_h)
+                
+                disp_w, disp_h = target_w, target_h
+                if not args.headless:
+                    cv2.resizeWindow(window_name, disp_w * 4, disp_h)
 
         # Fetch actual window client area dimensions dynamically to adapt to resizing
         try:
