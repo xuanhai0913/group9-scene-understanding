@@ -1183,6 +1183,26 @@ try:
     if 'video_writer' in locals() and video_writer is not None:
         video_writer.release()
         print(f"[SUCCESS] Da ghi xong video output vao: {args.save_video}")
+        
+        # Tu dong nen bang FFmpeg de giam toi da dung luong video (rat huu ich tren Google Colab)
+        if os.path.exists(args.save_video) and os.path.getsize(args.save_video) > 1024 * 1024:
+            import shutil
+            import subprocess
+            if shutil.which("ffmpeg") is not None:
+                print("[INFO] Phat hien FFmpeg. Dang tu dong nen video de giam dung luong (chuyen sang H.264)...")
+                temp_output = args.save_video + ".temp.mp4"
+                try:
+                    cmd = ["ffmpeg", "-y", "-i", args.save_video, "-vcodec", "libx264", "-crf", "28", "-preset", "fast", temp_output]
+                    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                    if os.path.exists(temp_output) and os.path.getsize(temp_output) > 0:
+                        old_size = os.path.getsize(args.save_video) / (1024 * 1024)
+                        new_size = os.path.getsize(temp_output) / (1024 * 1024)
+                        shutil.move(temp_output, args.save_video)
+                        print(f"[SUCCESS] Tu dong nen video hoan tat: {old_size:.1f} MB -> {new_size:.1f} MB (Tiet kiem {((old_size - new_size)/old_size)*100:.1f}% dung luong)!")
+                except Exception as e:
+                    if os.path.exists(temp_output):
+                        os.remove(temp_output)
+                    print(f"[WARNING] Khong the nen video bang FFmpeg: {e}")
 finally:
     # Dam bao luon dung cac luong khi chuong trinh ket thuc
     reader_thread.stop()
