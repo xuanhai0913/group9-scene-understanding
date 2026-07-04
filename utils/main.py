@@ -118,8 +118,6 @@ CLASS_COLORS = [
 # 1. KHOI TAO MO HINH SEMANTIC SEGMENTATION (U-Net)
 # Chuyen sang dung weights thuc cho "road" (toan bo mat duong) thay vi "lane" (chi rieng 1 lan xe)
 unet_weights_path = "weights/UNET_resnet50_road/best_model.pth"
-if not os.path.exists(unet_weights_path) and os.path.exists("weights/UNET_resnet50_cityscapes/best_model.pth"):
-    unet_weights_path = "weights/UNET_resnet50_cityscapes/best_model.pth"
 use_fallback_detection = False
 
 # Doc ten backbone va kich thuoc resize tu file train_config.yaml de khoi tao va chay cho khop
@@ -140,6 +138,19 @@ if os.path.exists(config_path):
         base_threshold = config.get("EVAL", {}).get("base_threshold", base_threshold)
     except:
         pass
+
+# Tự động chuyển đổi nếu file weights/UNET_resnet50_road/best_model.pth không tồn tại nhưng cityscapes có (kiểm tra sau khi đọc config)
+if not os.path.exists(unet_weights_path):
+    alternatives = [
+        "weights/UNET_resnet50_cityscapes/best_model.pth",
+        "./weights/UNET_resnet50_cityscapes/best_model.pth",
+        "weights/UNET_resnet50_road/best_model.pth"
+    ]
+    for alt in alternatives:
+        if os.path.exists(alt):
+            unet_weights_path = alt
+            print(f"[INFO] Tu dong chuyen huong file trong so ve checkpoint tim thay tai: {alt}")
+            break
 
 if os.path.exists(unet_weights_path):
     # Load state dict first to inspect number of classes
