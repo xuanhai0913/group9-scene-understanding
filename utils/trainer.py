@@ -345,13 +345,30 @@ class Trainer(object):
         # fix the DataParallel caused problem with keys names
         if self.multi_gpu_flag:
             new_state_dict = fix_multigpu_chkpt_names(chkpt['state_dict'], drop=False)
-            self.net.load_state_dict(new_state_dict)
         else:
-            try:
-                self.net.load_state_dict(chkpt['state_dict'])
-            except:
-                new_state_dict = fix_multigpu_chkpt_names(chkpt['state_dict'], drop=True)
-                self.net.load_state_dict(new_state_dict)
+            new_state_dict = chkpt['state_dict']
+
+        # Filter state dict dynamically to handle class weight shape mismatch
+        model_state = self.net.state_dict()
+        filtered_state = {}
+        for k, v in new_state_dict.items():
+            if k in model_state:
+                if model_state[k].shape == v.shape:
+                    filtered_state[k] = v
+                else:
+                    logging.warning(f"[WARNING] Skipping layer '{k}' due to shape mismatch: "
+                                    f"Model expects {model_state[k].shape}, checkpoint has {v.shape}. "
+                                    f"This is expected when transitioning between 4-class and 8-class models.")
+            else:
+                # Try fallback names (e.g. without module. or with module.)
+                alt_k = k.replace("module.", "") if k.startswith("module.") else "module." + k
+                if alt_k in model_state and model_state[alt_k].shape == v.shape:
+                    filtered_state[alt_k] = v
+                else:
+                    logging.warning(f"[WARNING] Layer '{k}' not matched in model state.")
+                    
+        # Load the filtered state dict with strict=False
+        self.net.load_state_dict(filtered_state, strict=False)
 
         if self.load_optimizer_state:
             self.optimizer.load_state_dict(chkpt['optimizer'])

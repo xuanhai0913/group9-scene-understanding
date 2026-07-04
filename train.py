@@ -61,13 +61,7 @@ if __name__ == "__main__":
         raise ValueError('Model type is not correct: `{}`.'.format(MODEL["mode"]))
 
     model_trainer = Trainer(model=model, image_dataset=image_dataset, optimizer=optim.Adam, **TRAINING)
-    checkpoint_path = TRAINING.get("load_checkpoint", "")
-    if checkpoint_path and os.path.exists(checkpoint_path):
-        print(f"[INFO] Loaded checkpoint and resumed training from: {checkpoint_path}")
-        state = torch.load(checkpoint_path, map_location=model_trainer.device, weights_only=False)
-        model.load_state_dict(state["state_dict"])
-        model_trainer.start_epoch = state["epoch"] + 1
-        model_trainer.best_metric = state["best_metric"]
+    # Note: Trainer automatically handles loading the checkpoint (including shape filtering, optimizer state, start_epoch, and best_metric) during initialization if load_checkpoint is set and exists.
     
     model_trainer.start(trainset, valset)
 
