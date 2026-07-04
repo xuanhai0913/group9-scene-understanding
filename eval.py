@@ -74,6 +74,20 @@ if __name__ == "__main__":
     checkpoint_path = EVAL["model_path"]
     
     if not os.path.exists(checkpoint_path):
+        # Tự động tìm đường dẫn fallback nếu không tìm thấy file theo config
+        alternatives = [
+            "weights/UNET_resnet50_cityscapes/best_model.pth",
+            "./weights/UNET_resnet50_cityscapes/best_model.pth",
+            "weights/UNET_resnet50_road/best_model.pth",
+            "./weights/UNET_resnet50_road/best_model.pth"
+        ]
+        for alt in alternatives:
+            if os.path.exists(alt):
+                checkpoint_path = alt
+                print(f"[INFO] Tu dong chuyen huong checkpoint ve: {alt}")
+                break
+                
+    if not os.path.exists(checkpoint_path):
         raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
         
     state = torch.load(checkpoint_path, map_location=device, weights_only=False)
