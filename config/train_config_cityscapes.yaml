@@ -51,7 +51,7 @@ TRAINING:
   load_optimizer_state: false
   lr: 0.001
   model_path: ./weights/UNET_resnet50_cityscapes
-  num_epochs: 30
+  num_epochs: 40
   scheduler_patience: 3
   weights_decay: 0.0
 PATHS:
