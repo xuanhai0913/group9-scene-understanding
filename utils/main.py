@@ -675,13 +675,18 @@ try:
                     if tracker.oncoming_hits_count >= 8:
                         tracker.auto_split_road_detected = True
                                         
+            is_hcm_left_lane = "hochiminh" in video_path.lower() or "ho_chi_minh" in video_path.lower() or "44238659" in video_path.lower()
+            
             if args.full_road:
                 is_full_road = True
             elif args.split_road:
                 is_full_road = False
             else:
-                # Mặc định: Tự động nhận diện loại đường dựa vào kết quả quét vạch vàng/xe ngược chiều
-                is_full_road = not getattr(tracker, 'auto_split_road_detected', False)
+                # Đối với video HCM có dải phân cách cứng thật, mặc định tự động chia làn chính xác
+                if is_hcm_left_lane:
+                    is_full_road = False
+                else:
+                    is_full_road = not getattr(tracker, 'auto_split_road_detected', False)
             
             # Vi tri camera_center luon dat o tam camera duoi day man hinh theo yeu cau cua De tai 2
             camera_center = (int(disp_w * 0.50), int(disp_h * 0.92))
@@ -712,6 +717,13 @@ try:
                             x2_l, y2_l = pt_left_top
                             x1_r, y1_r = pt_right_bottom
                             x2_r, y2_r = pt_right_top
+                        elif is_hcm_left_lane:
+                            # Cấu hình làn Ego nằm bên trái dải phân cách cứng (làn xe máy của ta)
+                            # Trục chia làn ở giữa (barrier) nằm ở khoảng x = w * 0.46 đến w * 0.48
+                            x1_l, y1_l = int(w * 0.02), int(h * 0.95)
+                            x2_l, y2_l = int(w * 0.15), int(h * 0.55)
+                            x1_r, y1_r = int(w * 0.46), int(h * 0.95)
+                            x2_r, y2_r = int(w * 0.48), int(h * 0.55)
                         else:
                             x1_l, y1_l = int(w * 0.46), int(h * 0.95)
                             x2_l, y2_l = int(w * 0.48), int(h * 0.55)
