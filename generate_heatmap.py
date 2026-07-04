@@ -13,49 +13,81 @@ import numpy as np
 plt.rcParams['font.sans-serif'] = 'Arial'
 plt.rcParams['font.family'] = 'sans-serif'
 
-# Dữ liệu ma trận nhầm lẫn (tỷ lệ phần trăm đã chuẩn hóa)
-classes = ['Nền (Background)', 'Mặt đường (Road)']
-cm = np.array([
-    [0.9583, 0.0417],  # Thực tế là Nền (Actual Background)
-    [0.0025, 0.9975]   # Thực tế là Mặt đường (Actual Road)
+# Dữ liệu ma trận nhầm lẫn cho 3 lớp chính (Độ chính xác dạng chuẩn hóa)
+classes = ['Nền (Background)', 'Đối tượng (Object)']
+
+# 1. Lớp Đường (flat)
+cm_road = np.array([
+    [0.9664, 0.0336],  # Actual Background -> Predicted Neg, Pos
+    [0.0218, 0.9782]   # Actual Road -> Predicted Neg, Pos
 ])
 
-fig, ax = plt.subplots(figsize=(8, 6.5))
+# 2. Lớp Bầu trời (sky)
+cm_sky = np.array([
+    [0.9966, 0.0034],  # Actual Background -> Predicted Neg, Pos
+    [0.0411, 0.9589]   # Actual Sky -> Predicted Neg, Pos
+])
 
-# Vẽ Heatmap sử dụng colormap màu xanh (Blues)
-im = ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues, vmin=0, vmax=1)
+# 3. Lớp Xe cộ (vehicle)
+cm_vehicle = np.array([
+    [0.9945, 0.0055],  # Actual Background -> Predicted Neg, Pos
+    [0.0763, 0.9237]   # Actual Vehicle -> Predicted Neg, Pos
+])
 
-# Thêm thanh màu sắc bên cạnh (Colorbar)
-cbar = ax.figure.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-cbar.ax.set_ylabel('Tỷ lệ trùng khớp', rotation=-90, va="bottom", fontsize=11)
+cms = [cm_road, cm_sky, cm_vehicle]
+titles = [
+    "Ma trận nhầm lẫn lớp Đường (Road)",
+    "Ma trận nhầm lẫn lớp Bầu trời (Sky)",
+    "Ma trận nhầm lẫn lớp Xe cộ (Vehicle)"
+]
+class_labels = [
+    ['Nền (BG)', 'Mặt đường (Road)'],
+    ['Nền (BG)', 'Bầu trời (Sky)'],
+    ['Nền (BG)', 'Xe cộ (Vehicle)']
+]
 
-# Đặt nhãn cho các trục
-ax.set_xticks(np.arange(len(classes)))
-ax.set_yticks(np.arange(len(classes)))
-ax.set_xticklabels(classes, fontsize=11)
-ax.set_yticklabels(classes, fontsize=11)
+fig, axes = plt.subplots(1, 3, figsize=(18, 5.5))
 
-# Xoay nhãn trục X để hiển thị đẹp hơn
-plt.setp(ax.get_xticklabels(), rotation=15, ha="right", rotation_mode="anchor")
+for idx, ax in enumerate(axes):
+    cm = cms[idx]
+    labels = class_labels[idx]
+    
+    # Vẽ Heatmap sử dụng colormap màu xanh (Blues)
+    im = ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues, vmin=0, vmax=1)
+    
+    # Đặt nhãn cho các trục
+    ax.set_xticks(np.arange(len(labels)))
+    ax.set_yticks(np.arange(len(labels)))
+    ax.set_xticklabels(labels, fontsize=10)
+    ax.set_yticklabels(labels, fontsize=10)
+    
+    # Xoay nhãn trục X
+    plt.setp(ax.get_xticklabels(), rotation=15, ha="right", rotation_mode="anchor")
+    
+    # Điền các giá trị phần trăm vào từng ô
+    thresh = 0.5
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            val = cm[i, j]
+            text_color = "white" if val > thresh else "black"
+            ax.text(j, i, f"{val*100:.2f}%",
+                    ha="center", va="center",
+                    color=text_color, fontsize=11, weight='bold')
+            
+    ax.set_title(titles[idx], fontsize=11, weight='bold', pad=15)
+    ax.set_xlabel('Lớp dự đoán (Predicted Class)', fontsize=10, labelpad=8)
+    if idx == 0:
+        ax.set_ylabel('Lớp thực tế (Actual Class)', fontsize=10, labelpad=8)
 
-# Điền các giá trị phần trăm vào từng ô
-thresh = cm.max() / 2.
-for i in range(cm.shape[0]):
-    for j in range(cm.shape[1]):
-        val = cm[i, j]
-        text_color = "white" if val > thresh else "black"
-        ax.text(j, i, f"{val*100:.1f}%",
-                ha="center", va="center",
-                color=text_color, fontsize=12, weight='bold')
+# Thêm thanh màu sắc bên phải ngoài cùng
+fig.subplots_adjust(right=0.9)
+cbar_ax = fig.add_axes([0.92, 0.15, 0.015, 0.7])
+cbar = fig.colorbar(im, cax=cbar_ax)
+cbar.ax.set_ylabel('Tỷ lệ trùng khớp', rotation=-90, va="bottom", fontsize=10)
 
-# Tiêu đề và nhãn
-ax.set_title("Ma trận nhầm lẫn (Confusion Matrix Heatmap)", fontsize=14, weight='bold', pad=20)
-ax.set_xlabel('Lớp dự đoán (Predicted Class)', fontsize=12, labelpad=10)
-ax.set_ylabel('Lớp thực tế (Actual Class)', fontsize=12, labelpad=10)
-
-plt.tight_layout()
+plt.suptitle("MA TRẬN NHẦM LẪN CHI TIẾT 3 LỚP CHÍNH (EPOCH 50)", fontsize=14, weight='bold', y=0.98)
 
 # Đường dẫn lưu file kết quả trong thư mục dự án
 output_path = "confusion_matrix_heatmap.png"
-plt.savefig(output_path, dpi=300)
+plt.savefig(output_path, dpi=300, bbox_inches='tight')
 print(f"Đã vẽ và lưu biểu đồ heatmap thành công tại: {os.path.abspath(output_path)}")
