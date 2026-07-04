@@ -1074,7 +1074,8 @@ try:
             panel_depth = view_depth.copy()
             panel_fused = output_frame.copy()
             
-            draw_panel_title(panel_input, "Input Video Frame")
+            title_text = "Input Image Frame" if is_image_input else "Input Video Frame"
+            draw_panel_title(panel_input, title_text)
             draw_panel_title(panel_seg, "Semantic Segmentation (U-Net)")
             draw_panel_title(panel_depth, "Depth Estimation (MiDaS)")
             draw_panel_title(panel_fused, "Fused Scene Understanding Overlay")
