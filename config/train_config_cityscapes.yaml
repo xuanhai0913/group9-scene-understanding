@@ -1,5 +1,5 @@
 DATASET:
-  hard_augs: false
+  hard_augs: true
   orig_size:
   - 384
   - 768
@@ -49,7 +49,7 @@ TRAINING:
   key_metric: dice
   load_checkpoint: './weights/UNET_resnet50_cityscapes/best_model.pth'
   load_optimizer_state: false
-  lr: 0.001
+  lr: 0.0003
   model_path: ./weights/UNET_resnet50_cityscapes
   num_epochs: 50
   scheduler_patience: 3
