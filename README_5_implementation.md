@@ -10,19 +10,25 @@ Tài liệu này hướng dẫn chi tiết về cấu trúc mã nguồn và các
 traffic-scene-understanding-btl/
 │
 ├── config/
-│   └── train_config.yaml         # Lưu cấu hình tham số hệ thống (ngưỡng, đường dẫn)
+│   ├── train_config.yaml         # Lưu cấu hình tham số hệ thống (nguỡng, đường dẫn)
+│   └── train_config_cityscapes.yaml # Cấu hình tham số đánh giá và kích thước ảnh
 │
 ├── data/
 │   ├── kitti/                    # Chứa tập dữ liệu KITTI Road (training, testing)
 │   ├── test_images/              # Chứa các ảnh kết quả phân vùng sau khi chạy eval
-│   └── sample_videos/            # Chứa các video kiểm thử (video1, video2, video3...)
+│   └── sample_videos/            # Chứa các video kiểm thử (hanoi, hochiminh, video3...)
 │
 ├── utils/
 │   ├── __init__.py               # Đăng ký các module
-│   ├── main.py                   # Triển khai pipeline chính (chạy video, vẽ HUD, cảnh báo)
-│   ├── video_loader.py           # Module đọc video và camera
-│   ├── kitti_lane_utils.py       # Module xử lý dữ liệu ảnh KITTI
-│   └── trainer.py                # Định nghĩa lớp Meter đo đạc chỉ số IoU/Dice
+│   ├── main.py                   # Triển khai pipeline chính (chạy video, vẽ HUD, cảnh báo, luồng quang học)
+│   ├── video_loader.py           # Module đọc video và camera đa luồng
+│   ├── fusion.py                 # Module lọc đường chân trời ROI, trích xuất Contours và hợp nhất dữ liệu
+│   ├── tracker.py                # Module theo dõi vật thể và gán ID tương đối
+│   ├── visualization.py          # Module vẽ khung bao HUD, radar cảnh báo, bảng dashboard
+│   ├── model.py                  # Định nghĩa mạng U-Net với backbone ResNet50
+│   ├── dataset.py                # Module quản lý tải dữ liệu huấn luyện
+│   ├── trainer.py                # Định nghĩa lớp Meter đo đạc chỉ số IoU/Dice khi huấn luyện
+│   └── kitti_lane_utils.py       # Module xử lý dữ liệu ảnh KITTI
 │
 ├── weights/
 │   └── UNET_resnet50_road/

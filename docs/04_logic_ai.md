@@ -1,93 +1,62 @@
-# Logic + AI
+# README 4: Logic & AI Fusion (Logic kết hợp dữ liệu AI)
 
-## Logic xử lý bài toán
+Tài liệu này giải thích thuật toán logic tích hợp đầu ra từ các mô hình AI khác nhau để đưa ra quyết định cảnh báo va chạm.
 
-Logic chính của dự án là tách bài toán scene understanding thành hai câu hỏi:
+---
 
-- Trong ảnh có những vùng nào và mỗi vùng thuộc lớp gì?
-- Các vùng đó gần hay xa camera?
+## 1. Sơ đồ xử lý tích hợp dữ liệu
+Mỗi khung hình video đầu vào đi qua 2 luồng xử lý song song trước khi được tích hợp:
 
-Câu hỏi thứ nhất được giải bằng semantic segmentation. Model nhận ảnh đầu vào và dự đoán nhãn cho từng pixel. Kết quả là một mask có cùng kích thước với ảnh, trong đó mỗi pixel thuộc một lớp như road, car, sky, sidewalk hoặc person.
-
-Câu hỏi thứ hai được giải bằng depth estimation. Model nhận ảnh đầu vào và tạo depth map. Depth map giúp nhận xét cấu trúc không gian của cảnh, vì vùng gần camera và vùng xa camera sẽ có giá trị khác nhau.
-
-## Logic Semantic Segmentation
-
-Ảnh đầu vào được resize và normalize. Sau đó model segmentation dự đoán xác suất của từng lớp tại mỗi pixel. Class có xác suất cao nhất sẽ trở thành nhãn của pixel đó.
-
-Kết quả:
-
-- Mask dạng số: mỗi pixel là một class id.
-- Mask dạng màu: mỗi class có một màu riêng.
-- Overlay: trộn mask màu với ảnh gốc để quan sát dễ hơn.
-
-## Logic Depth Estimation
-
-Ảnh đầu vào được đưa vào MiDaS. Model tạo ra một depth map. Depth map được resize và normalize để hiển thị.
-
-Điểm cần nhớ:
-
-- MiDaS thường tạo relative depth.
-- Relative depth cho biết vùng nào gần hơn hoặc xa hơn.
-- Không nên khẳng định khoảng cách chính xác theo mét nếu không có calibration.
-
-## Logic Fusion
-
-Sau khi có segmentation mask và depth map, hệ thống kết hợp hai kết quả theo pixel.
-
-Ví dụ:
-
-- Nếu pixel thuộc lớp `road`, ta có thể quan sát độ sâu của mặt đường.
-- Nếu pixel thuộc lớp `car`, ta có thể so sánh xe nào gần hơn.
-- Nếu vùng `sky` có depth xa, kết quả hợp lý với ngữ cảnh.
-- Nếu vùng `sidewalk` bị nhầm với `road`, cần kiểm tra lại segmentation.
-
-Fusion giúp hệ thống hiểu cảnh ở mức cao hơn. Segmentation cho biết **vùng đó là gì**, depth cho biết **vùng đó gần hay xa**.
-
-## Cách sử dụng AI
-
-Nhóm dùng AI như công cụ hỗ trợ phân tích, không dùng để làm thay toàn bộ dự án.
-
-Quy trình dùng AI:
-
-- Chuẩn bị knowledge base trước khi hỏi.
-- Tự viết lại yêu cầu bài toán.
-- Hỏi AI kiểm tra cách hiểu.
-- Hỏi AI góp ý feature.
-- Hỏi AI so sánh model và dataset.
-- Hỏi AI giải thích logic segmentation, depth và fusion.
-- Hỏi AI lập checklist implement và test.
-- Nhóm tự chốt phạm vi, viết code, chạy demo và kiểm tra output.
-
-## Knowledge Base cho AI
-
-Knowledge base nên đưa cho AI:
-
-```text
-Nhóm 9 làm đề tài scene understanding cho ảnh đường phố.
-Input: ảnh đường phố.
-Output: semantic segmentation mask và depth map.
-Dataset tham khảo: Cityscapes cho segmentation, KITTI cho depth.
-Model tham khảo: U-Net cho segmentation, MiDaS cho depth estimation.
-Mục tiêu: demo phân tích ngữ cảnh giao thông, không xây dựng xe tự hành hoàn chỉnh.
-AI chỉ hỗ trợ giải thích, góp ý logic, chia task và lập checklist test.
+```
+                     ┌───────────────┐
+                     │  Video Frame  │
+                     └───────┬───────┘
+            ┌────────────────┴────────────────┐
+            ▼                                 ▼
+      ┌───────────┐                     ┌───────────┐
+      │   U-Net   │                     │   MiDaS   │
+      └─────┬─────┘                     └─────┬─────┘
+            ├──────────────┐                  │ (Depth)
+            │ (Mask)       │ (Mask)           │
+            ▼              ▼                  │
+    ┌───────────┐    ┌───────────┐            │
+    │  Định vị  │    │Trích xuất │            │
+    │  làn xe   │    │  hộp bao  │            │
+    │ (Ego Lane)│    │(Contours) │            │
+    └─────┬─────┘    └─────┬─────┘            │
+            │              │                  │
+            ▼              ▼                  ▼
+    ┌─────────────────────────────────────────┐
+    │          TÍCH HỢP HỢP NHẤT DỮ LIỆU      │
+    └────────────────────┬────────────────────┘
+                         ▼
+             ┌──────────────────────┐
+             │ Quyết định cảnh báo  │
+             └──────────────────────┘
 ```
 
-## Prompt mẫu
+---
 
-```text
-Nhóm em đang làm đề tài phân tích ngữ cảnh giao thông bằng semantic segmentation và depth estimation. Em đã tự xác định input là ảnh đường phố, output là segmentation mask và depth map. Bạn kiểm tra giúp cách hiểu này đã đúng chưa, cần giới hạn phạm vi thế nào để dễ triển khai trong bài tập lớn.
-```
+## 2. Các thuật toán logic cốt lõi
 
-```text
-Với đề tài này, em dự kiến dùng Cityscapes cho segmentation, KITTI cho depth, U-Net cho segmentation và MiDaS cho depth estimation. Bạn phân tích giúp vì sao cách chọn này hợp lý, điểm mạnh và hạn chế của từng thành phần.
-```
+### 2.1. Thuật toán định vị vùng làn đường (Lane Area definition)
+*   Sử dụng hàm hỗ trợ `detect_lanes` trong `utils/lane.py` để xác định 4 điểm neo ranh giới bao gồm: Cận trái dưới, cận trái trên, cận phải dưới, cận phải trên.
+*   Thiết lập các đa giác làn đường tương ứng (Ego Lane Polygon Area) dựa trên các tọa độ biên này để khoanh vùng khu vực theo dõi vật cản của xe chủ.
 
-```text
-Em muốn giải thích logic kết hợp segmentation và depth. Bạn giúp em diễn đạt ngắn gọn: segmentation trả lời pixel thuộc lớp gì, depth trả lời vùng đó gần hay xa, khi kết hợp thì hệ thống hiểu ngữ cảnh giao thông tốt hơn.
-```
+### 2.2. Thuật toán ước lượng khoảng cách tương đối (Depth Mapping Logic)
+*   Để ước lượng mức gần/xa của xe phía trước, hệ thống lấy tọa độ hộp bao của xe trích xuất trực tiếp từ thuật toán Contours trên mặt nạ U-Net.
+*   Cắt phân vùng tương ứng trên bản đồ độ sâu của MiDaS (tập trung vào 1/3 phía dưới của hộp bao vì đây là điểm tiếp xúc bánh xe gần đúng của phương tiện với mặt đường).
+*   Tính giá trị trung vị (Median Depth) của vùng này để tránh nhiễu và tạo chỉ số khoảng cách tương đối:
+    $$d_{rel} = \frac{1000.0}{\text{Depth}_{\text{median}} + 10^{-5}}$$
+*   `d_rel` chỉ là chỉ số heuristic không có đơn vị. Muốn suy ra mét cần camera calibration và dữ liệu ground truth.
 
-## Câu tóm tắt khi thuyết trình
+### 2.3. Thuật toán tự động nhận diện loại Camera & Chọn hướng làn (Ego-Motion & Dynamic Lane Selector)
+*   **Luồng quang học (Optical Flow):** Sử dụng thuật toán Lucas-Kanade đo sự dịch chuyển các điểm đặc trưng tĩnh ở hậu cảnh. Nếu độ dịch chuyển trung bình $< 0.55$ pixel/khung hình $\rightarrow$ Kết luận Camera cố định (CCTV) và tự động bật **Giám sát toàn phần (Full Road)**.
+*   **Chọn làn động (Dynamic Lane Selection):** Nếu là Camera di chuyển (Dashcam), hệ thống so sánh tâm chiếc xe gần xe ta nhất: nếu nó nằm ở bên trái $\rightarrow$ tự động cấu hình làn Ego màu tím nằm lệch trái dải phân cách.
 
-Nhóm em dùng AI như một công cụ hỗ trợ phân tích. Trước khi hỏi AI, nhóm em đưa knowledge base gồm yêu cầu, input, output, dataset, model và giới hạn đề tài. AI được dùng để kiểm tra logic, gợi ý cách triển khai và lập checklist, còn việc chốt phạm vi, viết code, chạy demo và đánh giá kết quả là do nhóm tự thực hiện.
-
+### 2.4. Logic quyết định cảnh báo va chạm (Collision Alert Decision)
+*   Sử dụng hàm kiểm tra điểm trong đa giác (`cv2.pointPolygonTest`) để xác định xem điểm tiếp xúc bánh xe của phương tiện phía trước có nằm trong đa giác làn đường động đã dựng hay không.
+*   Nếu nằm trong làn hiện tại của xe chủ:
+    *   Kiểm tra chỉ số tương đối $d_{rel}$.
+    *   Nếu chỉ số thỏa điều kiện cảnh báo heuristic của demo (khoảng cách tương đối < 4.5) thì hiển thị banner đỏ và đổi màu khung bao thành đỏ.
+    *   Ngược lại, hiển thị khung bao màu xanh lá/vàng bình thường.

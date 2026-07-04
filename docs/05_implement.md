@@ -1,153 +1,65 @@
-# Implement
+# README 5: Implementation (Triển khai mã nguồn)
 
-## Hướng triển khai tổng quan
+Tài liệu này hướng dẫn chi tiết về cấu trúc mã nguồn và cách cài đặt dự án.
 
-Quá trình implement nên chia thành các module nhỏ để dễ phân công và dễ debug.
+---
 
-Thứ tự triển khai:
+## 1. Cấu trúc thư mục dự án
 
-- Chuẩn bị ảnh đầu vào.
-- Tiền xử lý ảnh.
-- Chạy semantic segmentation.
-- Chạy depth estimation.
-- Kết hợp kết quả.
-- Tạo hình demo và báo cáo.
-
-## Cấu trúc thư mục đề xuất
-
-```text
-group9-scene-understanding/
+```
+traffic-scene-understanding-btl/
+│
+├── config/
+│   ├── train_config.yaml         # Lưu cấu hình tham số hệ thống (nguỡng, đường dẫn)
+│   └── train_config_cityscapes.yaml # Cấu hình tham số đánh giá và kích thước ảnh
+│
 ├── data/
-│   ├── raw/
-│   └── samples/
-├── docs/
-├── notebooks/
-│   └── demo_scene_understanding.ipynb
-├── outputs/
-│   ├── segmentation/
-│   ├── depth/
-│   └── fusion/
-├── src/
-│   ├── preprocess.py
-│   ├── segmentation.py
-│   ├── depth.py
-│   ├── fusion.py
-│   └── visualize.py
-├── requirements.txt
-└── README.md
+│   ├── kitti/                    # Chứa tập dữ liệu KITTI Road (training, testing)
+│   ├── test_images/              # Chứa các ảnh kết quả phân vùng sau khi chạy eval
+│   └── sample_videos/            # Chứa các video kiểm thử (hanoi, hochiminh, video3...)
+│
+├── utils/
+│   ├── __init__.py               # Đăng ký các module
+│   ├── main.py                   # Triển khai pipeline chính (chạy video, vẽ HUD, cảnh báo, luồng quang học)
+│   ├── video_loader.py           # Module đọc video và camera đa luồng
+│   ├── fusion.py                 # Module lọc đường chân trời ROI, trích xuất Contours và hợp nhất dữ liệu
+│   ├── tracker.py                # Module theo dõi vật thể và gán ID tương đối
+│   ├── visualization.py          # Module vẽ khung bao HUD, radar cảnh báo, bảng dashboard
+│   ├── model.py                  # Định nghĩa mạng U-Net với backbone ResNet50
+│   ├── dataset.py                # Module quản lý tải dữ liệu huấn luyện
+│   ├── trainer.py                # Định nghĩa lớp Meter đo đạc chỉ số IoU/Dice khi huấn luyện
+│   └── kitti_lane_utils.py       # Module xử lý dữ liệu ảnh KITTI
+│
+├── weights/
+│   └── UNET_resnet50_road/
+│       └── best_model.pth        # File trọng số mô hình U-Net ResNet50 tối ưu mới nhất
+│
+├── eval.py                       # Script chạy đánh giá mô hình U-Net trên tập Validation
+├── generate_heatmap.py           # Script tự động vẽ biểu đồ Confusion Matrix Heatmap
+└── requirements.txt              # Danh sách các thư viện cần cài đặt
 ```
 
-Giai đoạn tài liệu hiện tại chưa cần tạo hết source code. Cấu trúc trên dùng để nhóm có hướng khi bắt đầu code.
+---
 
-## Module Preprocessing
+## 2. Hướng dẫn cài đặt và thiết lập môi trường
 
-Nhiệm vụ:
+### Bước 1: Cài đặt các thư viện phụ thuộc
+Yêu cầu Python từ phiên bản 3.8 trở lên. Cài đặt các thư viện cần thiết bằng lệnh:
+```bash
+pip install -r requirements.txt
+```
 
-- Đọc ảnh bằng OpenCV hoặc PIL.
-- Chuyển ảnh về RGB nếu cần.
-- Resize ảnh về kích thước model yêu cầu.
-- Normalize ảnh.
-- Chuyển ảnh sang tensor nếu dùng PyTorch.
+### Bước 2: Chuẩn bị model weights và dữ liệu
 
-Output:
-
-- Ảnh đã tiền xử lý.
-- Shape ảnh.
-- Tensor đầu vào cho model.
-
-## Module Segmentation
-
-Nhiệm vụ:
-
-- Load model segmentation.
-- Đưa ảnh vào model.
-- Lấy mask dự đoán.
-- Gán màu cho từng class.
-- Tạo overlay mask lên ảnh gốc.
-
-Output:
-
-- Semantic mask.
-- Colored mask.
-- Segmentation overlay.
-
-Nếu dùng U-Net tự train:
-
-- Chuẩn bị ảnh và nhãn.
-- Chia train/validation.
-- Train trên subset nhỏ.
-- Đánh giá bằng pixel accuracy hoặc mean IoU.
-
-Nếu dùng pretrained:
-
-- Ghi rõ model đã được huấn luyện trên dataset nào.
-- Tập trung vào inference và giải thích output.
-
-## Module Depth
-
-Nhiệm vụ:
-
-- Load MiDaS.
-- Transform ảnh đầu vào.
-- Chạy inference.
-- Resize depth map về kích thước ảnh gốc.
-- Normalize depth map để hiển thị.
-
-Output:
-
-- Depth map.
-- Depth colormap.
-
-Lưu ý:
-
-- Depth của MiDaS là relative depth.
-- Khi thuyết trình nên nói là ước lượng gần/xa tương đối.
-
-## Module Fusion
-
-Nhiệm vụ:
-
-- Nhận segmentation mask và depth map.
-- Căn chỉnh kích thước hai output.
-- Tính depth trung bình theo từng class nếu cần.
-- Tạo nhận xét về ngữ cảnh.
-- Làm nổi bật đối tượng gần camera.
-
-Ví dụ output:
+Các file lớn không được lưu trong Git. Tải tài nguyên từ [Google Drive của nhóm](https://drive.google.com/drive/folders/1Q4kjK8xg9h7dO16AzeHo5A71DnF5Idr1?hl=vi), sau đó đặt checkpoint U-Net tại:
 
 ```text
-road: chiếm phần lớn phía dưới ảnh, depth thay đổi theo phối cảnh.
-car: có một vùng gần camera hơn so với nền.
-sky: thường nằm phía trên ảnh và là vùng xa.
+weights/UNET_resnet50_road/best_model.pth
 ```
 
-## Notebook demo
+MiDaS TFLite sẽ được tải tự động vào `models/midasModel.tflite` trong lần chạy đầu. Dữ liệu KITTI, Cityscapes và media demo cần được đặt đúng các đường dẫn trong `config/train_config.yaml`.
 
-Notebook nên có các cell:
-
-- Import thư viện.
-- Đọc ảnh mẫu.
-- Hiển thị ảnh gốc.
-- Chạy segmentation.
-- Hiển thị mask và overlay.
-- Chạy depth estimation.
-- Hiển thị depth map.
-- Kết hợp segmentation và depth.
-- Lưu output.
-- In checklist kết quả.
-
-## Chia việc cho nhóm 6 người
-
-Gợi ý chia việc:
-
-- Hải: leader, tổng quan đề tài, AI workflow, pipeline và đối đáp.
-- Thành viên 1: dataset Cityscapes/KITTI, mô tả input/output.
-- Thành viên 2: semantic segmentation, U-Net, mask và metric.
-- Thành viên 3: depth estimation, MiDaS, relative depth.
-- Thành viên 4: fusion, visualization, overlay và output demo.
-- Thành viên 5: báo cáo, slide, test case và câu hỏi phản biện.
-
-## Câu tóm tắt khi thuyết trình
-
-Nhóm em triển khai theo pipeline rõ ràng: đọc ảnh, tiền xử lý, chạy segmentation để phân vùng đối tượng, chạy depth để ước lượng gần xa, sau đó kết hợp hai kết quả và tạo hình demo. Cách chia module giúp nhóm dễ debug và dễ giải thích từng phần khi bảo vệ.
-
+### Bước 3: Kiểm tra cấu hình hệ thống
+Mở file `config/train_config.yaml` để kiểm tra các tham số quan trọng:
+*   `EVAL.base_threshold`: Đặt ở mức `-2.5` để tối ưu Recall và IoU cho U-Net.
+*   `EVAL.device`: Có thể tùy chọn `'cpu'` hoặc `'cuda'` nếu máy có hỗ trợ GPU Nvidia.

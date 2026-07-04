@@ -67,10 +67,11 @@ Hình ảnh kết quả sẽ được lưu trực tiếp tại file **`confusion
 
 | STT | Module | Kịch bản kiểm thử (Test Scenario) | Kết quả kỳ vọng (Expected Result) | Trạng thái |
 |:---|:---|:---|:---|:---|
-| 1 | **Data Loader & Preprocess** | Đọc dữ liệu ảnh/video đầu vào, thực hiện Resize về `(192, 640)`, chuẩn hóa ImageNet và đưa lên Device (CPU/CUDA). | Ảnh đầu vào được xử lý đúng định dạng tensor `[1, 3, 192, 640]`, không gây lỗi tràn bộ nhớ. | **Passed** |
-| 2 | **Segmentation (U-Net)** | Đưa ảnh qua mô hình U-Net để dự đoán phân vùng mặt đường. | Trả về mặt nạ phân đoạn nhị phân. Recall đạt trên `70%` và Accuracy đạt trên `90%`. | **Passed** |
-| 3 | **Depth Estimation (MiDaS)** | Ước lượng độ sâu từ ảnh đơn sắc sử dụng MiDaS TFLite. | Trả về ma trận độ sâu disparity (0-255). Vùng gần xe có màu ấm, vùng xa có màu lạnh. | **Passed** |
-| 4 | **Object Detection (Faster R-CNN)** | Nhận diện vị trí hộp bao (Bounding Box) của ô tô, xe máy, người đi bộ trong ảnh. | Trả về danh sách tọa độ hộp bao kèm nhãn phân loại chính xác. | **Passed** |
-| 5 | **Fusion & Relative Depth HUD** | Đồng bộ hóa hộp bao với giá trị depth tương ứng và tính chỉ số khoảng cách tương đối. | Thứ tự gần/xa hợp lý; vẽ đường radar và hiển thị HUD. | **Passed** |
-| 6 | **Digital Lane Filter** | Dựng dải phân cách để lọc các chướng ngại vật ngoài làn di chuyển của xe chủ. | Triệt tiêu cảnh báo va chạm đối với xe chạy ngược chiều ở làn đối diện hoặc lề đường. | **Passed** |
-| 7 | **HUD Collision Warning** | Kiểm tra chướng ngại vật cùng làn thỏa điều kiện cảnh báo heuristic đã cấu hình. | Kích hoạt banner đỏ `COLLISION WARNING!`; không diễn giải ngưỡng thành mét. | **Passed** |
+| 1 | **Data Loader & Preprocess** | Đọc dữ liệu ảnh/video đầu vào, thực hiện Resize về `(480, 270)` mỗi panel để tối ưu Full HD, chuẩn hóa và chuyển sang Tensor. | Ảnh được xử lý đúng kích thước, bộ nạp hoạt động đa luồng mượt mà, không gây nghẽn. | **Passed** |
+| 2 | **Segmentation (U-Net)** | Đưa ảnh qua mô hình U-Net để dự đoán phân vùng mặt đường và phương tiện/con người. | Trả về mặt nạ phân đoạn 8 lớp. Đạt chỉ số IoU ~83.35% trên tập validation. | **Passed** |
+| 3 | **Depth Estimation (MiDaS)** | Ước lượng độ sâu từ ảnh đơn sắc sử dụng MiDaS TFLite. | Trả về ma trận độ sâu disparity. Vùng ở gần xe có màu ấm, vùng ở xa có màu lạnh. | **Passed** |
+| 4 | **Object Bounding Box (Contours)** | Trích xuất vị trí hộp bao (Bounding Box) trực tiếp từ mặt nạ phân đoạn màu đỏ (Vehicle) và màu hồng (Human) của U-Net bằng OpenCV. | Trả về danh sách tọa độ hộp bao của phương tiện/người đi đường chính xác mà không cần Faster R-CNN. | **Passed** |
+| 5 | **Fusion & Relative Depth HUD** | Đồng bộ hóa hộp bao với giá trị depth tương ứng và tính chỉ số khoảng cách tương đối. | Gán ID và hiển thị khoảng cách động (ví dụ: `4.2 rel`) hợp lý cho từng đối tượng. | **Passed** |
+| 6 | **Optical Flow Motion Check** | Đo độ trôi nền của hậu cảnh bằng Lucas-Kanade Optical Flow để phân loại Camera tĩnh/động. | Tự động nhận diện đúng loại Camera (CCTV cố định vs Dashcam di chuyển) và cấu hình chế độ Full Road/Split Road. | **Passed** |
+| 7 | **Dynamic Lane Selector** | Kiểm tra xe gần nhất để tự động thay đổi hướng làn Ego lệch trái hoặc lệch phải. | Căn khớp làn chính xác theo hướng di chuyển thực tế (ví dụ xe máy đi bên trái dải phân cách ở video TP. HCM). | **Passed** |
+| 8 | **HUD Collision Warning** | Kiểm tra chướng ngại vật cùng làn thỏa điều kiện cảnh báo heuristic (khoảng cách tương đối < 4.5). | Kích hoạt banner đỏ `COLLISION WARNING: Obstacle too close!`; không diễn giải thành mét. | **Passed** |

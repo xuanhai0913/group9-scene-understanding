@@ -1,61 +1,25 @@
-# User's Requirement
+# README 1: User Requirements (Yêu cầu hệ thống)
 
-## Yêu cầu bài toán
+Tài liệu này mô tả chi tiết các yêu cầu nghiệp vụ và kỹ thuật của hệ thống hỗ trợ lái xe nâng cao (ADAS) kết hợp Phân đoạn ngữ cảnh (Semantic Segmentation) và Ước lượng độ sâu (Depth Estimation).
 
-Nhóm 9 chọn đề tài **phân tích ngữ cảnh giao thông dựa trên Semantic Segmentation và Depth Estimation**. Hệ thống nhận một ảnh đường phố làm đầu vào, sau đó tạo ra hai kết quả chính: ảnh phân vùng ngữ nghĩa và bản đồ độ sâu.
+---
 
-Semantic segmentation trả lời câu hỏi: **pixel này thuộc lớp nào?** Ví dụ, pixel có thể thuộc các lớp như mặt đường, xe, bầu trời, vỉa hè, người đi bộ, tòa nhà hoặc cây xanh.
+## 1. Bối cảnh và Bài toán
+Trong các hệ thống tự hành và hỗ trợ lái xe nâng cao (ADAS), việc hiểu rõ môi trường xung quanh (Traffic Scene Understanding) là yếu tố sống còn để đảm bảo an toàn. 
+Đề tài này tập trung giải quyết bài toán: **Segmentation + Depth -> Scene understanding** (Phân đoạn đường + Tính toán độ sâu -> Hiểu ngữ cảnh giao thông).
 
-Depth estimation trả lời câu hỏi: **vùng này gần hay xa camera?** Kết quả là depth map, trong đó mỗi điểm ảnh thể hiện mức độ gần xa tương đối.
+---
 
-## Input
+## 2. Các yêu cầu cốt lõi từ người dùng (User's Requirements)
 
-Input dự kiến:
+### 2.1. Yêu cầu Phân đoạn ngữ cảnh (Semantic Segmentation)
+*   **Mục tiêu:** Hệ thống phải phân tách được chính xác khu vực mặt đường (Road) và phân chia các làn đường trên video thời gian thực.
+*   **Yêu cầu kỹ thuật:** Sử dụng dữ liệu thực tế từ tập dữ liệu **KITTI** và mô hình phân đoạn mức độ pixel để xác định ranh giới đường đi.
 
-- Ảnh đường phố chụp từ góc nhìn xe hoặc camera giao thông.
-- Ảnh có các thành phần quen thuộc như mặt đường, xe, bầu trời, vỉa hè, người đi bộ, nhà cửa, cây xanh.
-- Ảnh có thể lấy từ Cityscapes, KITTI hoặc ảnh đường phố dùng cho demo.
+### 2.2. Yêu cầu Ước lượng độ sâu (Depth Estimation)
+*   **Mục tiêu:** Tính toán bản đồ độ sâu của khung cảnh phía trước từ một camera đơn sắc (Monocular Camera) để biết khoảng cách xa/gần của các chướng ngại vật.
+*   **Yêu cầu kỹ thuật:** Sử dụng mô hình ước lượng độ sâu thời gian thực để tạo ra bản đồ nhiệt độ sâu tương ứng với các khung hình video.
 
-## Output
-
-Output mong muốn:
-
-- Semantic segmentation mask.
-- Ảnh segmentation overlay lên ảnh gốc.
-- Depth map thể hiện vùng gần/xa.
-- Ảnh tổng hợp gồm ảnh gốc, segmentation, depth và nhận xét ngắn.
-
-## Scope
-
-Phạm vi cần làm:
-
-- Làm pipeline xử lý ảnh đường phố.
-- Demo được segmentation và depth trên một hoặc nhiều ảnh.
-- Giải thích được model và output.
-- Có tài liệu trình bày theo luồng: requirement, features, tech solution, logic + AI, implement, test.
-- Có thể dùng model pretrained nếu việc train quá nặng.
-
-## Out Of Scope
-
-Những phần không làm trong giai đoạn đầu:
-
-- Không xây dựng ADAS hoàn chỉnh.
-- Không điều khiển xe hoặc đưa ra quyết định an toàn thật.
-- Không bắt buộc đo khoảng cách chính xác bằng mét.
-- Không bắt buộc train toàn bộ Cityscapes hoặc KITTI.
-- Không xử lý video real-time nếu thời gian không đủ.
-
-## Tiêu chí thành công
-
-Một demo được xem là đạt yêu cầu nếu:
-
-- Ảnh đầu vào được đọc và hiển thị đúng.
-- Segmentation mask thể hiện được các vùng chính như road, car, sky.
-- Depth map cho thấy sự khác biệt gần/xa tương đối.
-- Output được lưu lại rõ ràng.
-- Nhóm giải thích được vì sao kết hợp segmentation và depth giúp hiểu cảnh tốt hơn.
-
-## Câu tóm tắt khi thuyết trình
-
-Đề tài của nhóm em nhận ảnh đường phố làm đầu vào, sau đó phân vùng từng pixel theo đối tượng và ước lượng độ sâu tương đối của từng vùng. Nhờ vậy hệ thống không chỉ biết trong ảnh có gì, mà còn hiểu được cấu trúc không gian gần xa trong cảnh giao thông.
-
+### 2.3. Yêu cầu Kết hợp thông tin & Cảnh báo an toàn (Collision Warning)
+*   **Mục tiêu:** Phát hiện các phương tiện đi phía trước (ô tô, xe máy) và theo dõi mức gần/xa tương đối của chúng đối với xe chủ.
+*   **Quy tắc cảnh báo:** Nếu phương tiện nằm trong làn đường hiện tại và chỉ số khoảng cách tương đối thỏa điều kiện heuristic của demo, hệ thống đưa ra cảnh báo trực quan trên HUD. Chỉ số này không phải khoảng cách theo mét và không dùng cho quyết định an toàn thực tế.

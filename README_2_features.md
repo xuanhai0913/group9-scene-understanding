@@ -23,13 +23,23 @@ Hệ thống đã triển khai phân đoạn ngữ cảnh toàn diện và phân
     *   **Biển báo / Cột mốc / Đèn tín hiệu (Traffic Lights/Signs/Objects):** Được phân đoạn bằng **Màu Xám Sáng** (Light Gray - BGR: `(153, 153, 153)`).
 
 ## 2. Ước lượng độ sâu dạng Dashboard (Real-time Depth Mapping)
-*   Hệ thống ước lượng khoảng cách cho toàn bộ điểm ảnh trong khung hình và hiển thị một màn hình phụ (Dashboard) bản đồ nhiệt độ sâu.
+*   Hệ thống ước lượng khoảng cách cho toàn bộ điểm ảnh trong khung hình sử dụng mô hình **MiDaS TFLite** và hiển thị một màn hình phụ (Dashboard) bản đồ nhiệt độ sâu.
 *   Các vùng ở gần xe có màu ấm (đỏ/cam/vàng) thể hiện khoảng cách nguy hiểm, các vùng ở xa có màu lạnh (xanh dương/tím).
 
-## 3. Phát hiện và Ước lượng gần/xa phương tiện (Vehicle Detection & Relative Depth HUD)
-*   Tự động phát hiện vị trí các phương tiện giao thông (xe hơi, xe máy, xe tải) di chuyển phía trước.
-*   Gắn hộp bao (Bounding Box) kèm chỉ số khoảng cách tương đối được cập nhật động từng khung hình (ví dụ: `Car: 4.2 rel`).
+## 3. Trích xuất hộp bao chướng ngại vật động (Contours-based Bounding Box Extraction)
+*   Thay vì chạy thêm mô hình Faster R-CNN nặng nề, hệ thống sử dụng giải pháp lai thông minh: **Trích xuất trực tiếp hộp bao (Bounding Box) từ mặt nạ phân đoạn lớp Phương tiện (Vehicle - Màu đỏ) và Con người (Human - Màu hồng) của U-Net** bằng thuật toán tìm đường bao OpenCV (`cv2.findContours`).
+*   Gán hộp bao (Bounding Box) kèm chỉ số khoảng cách tương đối được cập nhật động từng khung hình (ví dụ: `VEHICLE #32: 9.4 rel`).
 
-## 4. Cảnh báo va chạm tức thời (Instant Collision Alert)
-*   Tính toán va chạm thông minh chỉ áp dụng cho phương tiện đi cùng làn (phương tiện ở làn đối diện hoặc lề đường sẽ không bị cảnh báo sai lệch).
-*   Khi chỉ số tương đối thỏa điều kiện cảnh báo heuristic, HUD hiển thị banner `WARNING: Front vehicle too close!`. Đây là minh họa nghiên cứu, không phải hệ thống cảnh báo an toàn đã hiệu chuẩn.
+## 4. Tự động nhận diện chuyển động Camera bằng Luồng quang học (Optical Flow)
+*   Tự động tính toán luồng quang học Lucas-Kanade (`cv2.calcOpticalFlowPyrLK`) cho các điểm nền tĩnh ở góc cao khung hình để đo tốc độ dịch chuyển của camera trong 1 giây đầu.
+*   **Camera Cố định (CCTV):** Tốc độ dịch chuyển nền bằng 0 $\rightarrow$ Tự động chuyển sang chế độ **Giám sát toàn diện mặt đường (Full Road)**.
+*   **Camera Hành trình (Dashcam):** Tốc độ dịch chuyển nền lớn hơn ngưỡng $\rightarrow$ Tự động chuyển sang chế độ **Chia làn đường (Split Road)** để hỗ trợ lái xe an toàn.
+
+## 5. Bộ định vị làn di chuyển động (Dynamic Ego-Lane Selector)
+*   Khi chạy chế độ chia làn đường, hệ thống tự động quét phương tiện ở cự ly gần nhất. 
+*   Nếu phương tiện gần nhất ở nửa trái màn hình (như làn xe máy ở video TP. HCM) $\rightarrow$ Tự động kéo mặt nạ làn đường chính (Ego Lane - màu tím) sang trái dải phân cách và vẽ vạch ngăn cách màu vàng đè khớp lên dải phân cách cứng.
+*   Ngược lại, mặc định làn chính sẽ nằm bên phải dải phân cách.
+
+## 6. Cảnh báo va chạm tức thời (Instant Collision Alert)
+*   Tính toán va chạm thông minh chỉ áp dụng cho phương tiện đi cùng làn di chuyển chính (Ego Lane - màu tím). Phương tiện ở làn đối diện hoặc vỉa hè sẽ không bị cảnh báo sai lệch.
+*   Khi chỉ số tương đối thỏa điều kiện cảnh báo heuristic (khoảng cách tương đối < 4.5), HUD hiển thị banner đỏ `COLLISION WARNING: Obstacle too close!`. Đây là minh họa nghiên cứu, không phải hệ thống cảnh báo an toàn đã hiệu chuẩn.
