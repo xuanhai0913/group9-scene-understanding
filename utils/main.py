@@ -82,7 +82,6 @@ from MidasDepthEstimation.midasDepthEstimator import midasDepthEstimator as Mida
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--video_path', type=str, default="", help="Duong dan den file video")
-parser.add_argument('--high_acc', action='store_true', help="Su dung mo hinh nhan dien SSD300 VGG16 do chinh xac cao")
 parser.add_argument('--full_road', action='store_true', help="Giam sat va canh bao va cham tren toan bo long duong (khong chia lan)")
 parser.add_argument('--skip_frames', type=int, default=1, help="Chi xu ly moi khung hinh thu N de tang toc tren CPU (skip_frames >= 1)")
 parser.add_argument('--save_video', type=str, default="", help="Duong dan de ghi video dau ra (vd: output.mp4)")
