@@ -65,7 +65,7 @@ if __name__ == "__main__":
     dataloader = DataLoader(
         image_dataset,
         batch_size=1,
-        num_workers=2,
+        num_workers=0,
         pin_memory=True,
         shuffle=True,   
     )
