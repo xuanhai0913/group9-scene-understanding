@@ -118,6 +118,8 @@ CLASS_COLORS = [
 # 1. KHOI TAO MO HINH SEMANTIC SEGMENTATION (U-Net)
 # Chuyen sang dung weights thuc cho "road" (toan bo mat duong) thay vi "lane" (chi rieng 1 lan xe)
 unet_weights_path = "weights/UNET_resnet50_road/best_model.pth"
+if not os.path.exists(unet_weights_path) and os.path.exists("weights/UNET_resnet50_cityscapes/best_model.pth"):
+    unet_weights_path = "weights/UNET_resnet50_cityscapes/best_model.pth"
 use_fallback_detection = False
 
 # Doc ten backbone va kich thuoc resize tu file train_config.yaml de khoi tao va chay cho khop
