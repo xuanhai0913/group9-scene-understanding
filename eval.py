@@ -244,16 +244,33 @@ if __name__ == "__main__":
                 cat, name = "catId", "category"
             else:
                 cat, name = "trainId", "name"
-            print("***** Class metrics: *****")
+            print("***** Class metrics (Filtered for Teacher's Requirement: Road, Car, Sky): *****")
             for k, v in dices[0].items():
                 if k != "dice_all":
-                    print(labels_df[labels_df[cat] == int(k)][name].iloc[0], " : ", v)
+                    class_name = labels_df[labels_df[cat] == int(k)][name].iloc[0]
+                    if class_name.lower() in ["flat", "sky", "vehicle", "road", "car"]:
+                        print(class_name, " : ", v)
         
         print("\n" + "="*50)
-        print("***** CLASSIFICATION METRICS (Pixel-wise) *****")
+        print("***** CLASSIFICATION METRICS (Filtered for Road, Car, Sky) *****")
         print("="*50)
         
         for c in range(eval_classes):
+            class_name_for_filter = ""
+            if eval_classes > 1:
+                try:
+                    labels_df = image_dataset.label_encoder.cityscapes_labels_df
+                    cat = "catId" if DATASET["train_on_cats"] else "trainId"
+                    # We use 'category' for catId to check if it's flat/vehicle/sky
+                    name_col = "category" if DATASET["train_on_cats"] else "name"
+                    class_name_for_filter = labels_df[labels_df[cat] == int(c)][name_col].iloc[0]
+                except:
+                    pass
+            
+            # Skip if not the required classes
+            if class_name_for_filter.lower() not in ["flat", "sky", "vehicle", "road", "car"]:
+                continue
+                
             tp = class_counts[c]["tp"]
             fp = class_counts[c]["fp"]
             fn = class_counts[c]["fn"]
@@ -268,10 +285,10 @@ if __name__ == "__main__":
             class_prefix = f"Class {c}: " if eval_classes > 1 else ""
             if eval_classes > 1:
                 try:
-                    labels_df = image_dataset.label_encoder.cityscapes_labels_df
-                    cat = "catId" if DATASET["train_on_cats"] else "trainId"
-                    class_name = labels_df[labels_df[cat] == int(c)]["name"].iloc[0]
-                    class_prefix = f"Class {c} ({class_name}): "
+                    class_name_display = labels_df[labels_df[cat] == int(c)]["name"].iloc[0]
+                    if DATASET["train_on_cats"]:
+                         class_name_display = labels_df[labels_df[cat] == int(c)]["category"].iloc[0]
+                    class_prefix = f"Class {c} ({class_name_display}): "
                 except:
                     pass
             
