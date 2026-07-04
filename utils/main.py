@@ -119,11 +119,6 @@ CLASS_COLORS = [
 # Chuyen sang dung weights thuc cho "road" (toan bo mat duong) thay vi "lane" (chi rieng 1 lan xe)
 unet_weights_path = "weights/UNET_resnet50_road/best_model.pth"
 use_fallback_detection = False
-detection_model = None
-
-# Đặt biến cờ để bật/tắt mô hình Object Detection (Faster R-CNN)
-# Đặt thành False để chạy nhẹ và mượt trên CPU, đặt thành True nếu muốn tải thêm Faster R-CNN
-ENABLE_DETECTION = True
 
 # Doc ten backbone va kich thuoc resize tu file train_config.yaml de khoi tao va chay cho khop
 config_path = args.config_path
@@ -182,15 +177,11 @@ if os.path.exists(unet_weights_path):
         exit(1)
         
     unet_model.eval()
-    
-    # Da xoa hoan toan Faster R-CNN / SSD vi De tai 2 trich xuat bounding box xe truc tiep tu mat na U-Net
-    detection_model = None
 else:
     unet_model = Unet(num_classes=8, encoder_name=backbone).to(device)
     print(f"[WARNING] Chua co file trong so {unet_weights_path} trong thu muc 'weights'.")
     print("[WARNING] He thong se tu dong kich hoat Che do Mo phong Thong minh (Simulated Demo Mode) de minh hoa BTL.")
     use_fallback_detection = True
-    detection_model = None
 
 # 2. KHOI TAO MO HINH DEPTH ESTIMATION (MiDaS TFLite cua ibaiGorordo)
 try:
@@ -251,13 +242,12 @@ tracker = Tracker()
 
 
 class InferenceThread(threading.Thread):
-    def __init__(self, input_queue, output_queue, reader_thread, unet_model, detection_model, depth_estimator, device, resize_dim, use_fallback_detection, unet_transform, is_midas_demo, CLASS_COLORS, args, base_threshold):
+    def __init__(self, input_queue, output_queue, reader_thread, unet_model, depth_estimator, device, resize_dim, use_fallback_detection, unet_transform, is_midas_demo, CLASS_COLORS, args, base_threshold):
         super().__init__()
         self.input_queue = input_queue
         self.output_queue = output_queue
         self.reader_thread = reader_thread
         self.unet_model = unet_model
-        self.detection_model = detection_model
         self.depth_estimator = depth_estimator
         self.device = device
         self.resize_dim = resize_dim
@@ -335,23 +325,8 @@ class InferenceThread(threading.Thread):
                     road_opposite_pts = np.array([[int(orig_w * 0.18), int(orig_h * 0.55)], [int(orig_w * 0.38), int(orig_h * 0.55)], [int(orig_w * 0.45), int(orig_h * 0.95)], [int(orig_w * 0.02), int(orig_h * 0.95)]], np.int32)
                     cv2.fillConvexPoly(color_mask, road_pts, (128, 64, 128))
                     cv2.fillConvexPoly(color_mask, road_opposite_pts, (128, 64, 128))
-                    seg_mask_full[cv2.drawContours(np.zeros_like(seg_mask_full), [road_pts, road_opposite_pts], -1, 1, -1) == 1] = 1
-
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    det_w, det_h = 640, 360
-                    frame_det = cv2.resize(frame_rgb, (det_w, det_h))
-                    det_tensor = transforms.ToTensor()(frame_det).unsqueeze(0).to(self.device)
-                    with torch.no_grad():
-                        predictions = self.detection_model(det_tensor)[0]
                     
-                    boxes = predictions['boxes'].cpu().numpy()
-                    labels = predictions['labels'].cpu().numpy()
-                    scores = predictions['scores'].cpu().numpy()
-                    
-                    scale_x_det = orig_w / det_w
-                    scale_y_det = orig_h / det_h
-                    
-                    detected_obstacles = filter_detections(boxes, labels, scores, orig_w, orig_h, scale_x_det, scale_y_det, depth_map)
+                    detected_obstacles = []
                 else:
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     seg_resized = cv2.resize(frame_rgb, self.resize_dim) 
@@ -387,21 +362,6 @@ class InferenceThread(threading.Thread):
                     seg_mask_full[0:sky_cutoff, :][seg_mask_full[0:sky_cutoff, :] == 6] = 0
                     
                     detected_obstacles = []
-                    if self.detection_model is not None:
-                        det_w, det_h = 640, 360
-                        frame_det = cv2.resize(frame_rgb, (det_w, det_h))
-                        det_tensor = transforms.ToTensor()(frame_det).unsqueeze(0).to(self.device)
-                        with torch.no_grad():
-                            predictions = self.detection_model(det_tensor)[0]
-                        
-                        boxes = predictions['boxes'].cpu().numpy()
-                        labels = predictions['labels'].cpu().numpy()
-                        scores = predictions['scores'].cpu().numpy()
-                        
-                        scale_x_det = orig_w / det_w
-                        scale_y_det = orig_h / det_h
-                        
-                        detected_obstacles = filter_detections(boxes, labels, scores, orig_w, orig_h, scale_x_det, scale_y_det, depth_map)
 
                 # Run Fusion
                 fused_obstacles = fuse_detections_and_segmentation(
@@ -489,7 +449,6 @@ inference_thread = InferenceThread(
     output_queue=result_queue,
     reader_thread=reader_thread,
     unet_model=unet_model,
-    detection_model=detection_model,
     depth_estimator=depth_estimator,
     device=device,
     resize_dim=resize_dim,
