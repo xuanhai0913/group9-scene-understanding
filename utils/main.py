@@ -182,33 +182,14 @@ if os.path.exists(unet_weights_path):
         
     unet_model.eval()
     
-    # Nap model Object Detection pre-trained de nhan dien xe may, xe dap va nguoi ma khong can train lai
-    if ENABLE_DETECTION:
-        print("[INFO] Dang nap mo hinh Object Detection pre-trained (Faster R-CNN) de nhan dien xe may/nguoi...")
-        try:
-            from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-            detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
-            detection_model.eval()
-            print("[INFO] Da nap thanh cong Faster R-CNN MobileNet.")
-        except Exception as e:
-            print(f"[WARNING] Khong the nap Faster R-CNN: {e}")
-            detection_model = None
-    else:
-        detection_model = None
+    # Da xoa hoan toan Faster R-CNN / SSD vi De tai 2 trich xuat bounding box xe truc tiep tu mat na U-Net
+    detection_model = None
 else:
     unet_model = Unet(num_classes=8, encoder_name=backbone).to(device)
     print(f"[WARNING] Chua co file trong so {unet_weights_path} trong thu muc 'weights'.")
     print("[WARNING] He thong se tu dong kich hoat Che do Mo phong Thong minh (Simulated Demo Mode) de minh hoa BTL.")
     use_fallback_detection = True
-    if ENABLE_DETECTION:
-        try:
-            from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-            detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
-            detection_model.eval()
-        except:
-            detection_model = None
-    else:
-        detection_model = None
+    detection_model = None
 
 # 2. KHOI TAO MO HINH DEPTH ESTIMATION (MiDaS TFLite cua ibaiGorordo)
 try:
@@ -453,16 +434,9 @@ class InferenceThread(threading.Thread):
                             cv2.rectangle(color_mask, (xmin, ymin), (xmax, ymax), (153, 153, 153), -1)
                             seg_mask_full[ymin:ymax, xmin:xmax] = 3
                 else:
-                    if getattr(self.unet_model, "num_classes", 8) != 4:
-                        for det in fused_obstacles:
-                            xmin, ymin, xmax, ymax = det['box']
-                            obs_type = det['type']
-                            if obs_type == 'vehicle':
-                                seg_mask_full[ymin:ymax, xmin:xmax] = 7
-                            elif obs_type == 'human':
-                                seg_mask_full[ymin:ymax, xmin:xmax] = 6
-                            elif obs_type in ['traffic light', 'stop sign']:
-                                seg_mask_full[ymin:ymax, xmin:xmax] = 3
+                    # Do not overwrite the raw semantic segmentation mask with solid filled bounding box rectangles.
+                    # This preserves the clean, organic pixel-wise classification of U-Net!
+                    pass
                     
                     color_mask = np.zeros_like(frame)
                     for class_idx, color in enumerate(self.CLASS_COLORS):
