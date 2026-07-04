@@ -1,11 +1,11 @@
 DATASET:
   hard_augs: false
   orig_size:
-  - 128
-  - 256
+  - 384
+  - 768
   resize:
-  - 128
-  - 256
+  - 384
+  - 768
   select_classes:
   - road
   - sky
