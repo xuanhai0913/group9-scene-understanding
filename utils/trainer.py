@@ -262,7 +262,10 @@ class Trainer(object):
         self.meter = Meter(self.model_path, self.base_threshold)
 
         if self.load_checkpoint:
-            self.load_model(ckpt_name=self.load_checkpoint)
+            if os.path.exists(self.load_checkpoint):
+                self.load_model(ckpt_name=self.load_checkpoint)
+            else:
+                logging.warning(f"[WARNING] Checkpoint not found at {self.load_checkpoint}, training from scratch.")
 
         self.accumulation_steps = self.batch_size * self.accumulation_batches
 
