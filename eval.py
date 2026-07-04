@@ -175,6 +175,7 @@ if __name__ == "__main__":
             outputs = torch.sigmoid(outputs)
         if DATASET["resize"]:
             outputs = torch.nn.functional.interpolate(outputs, size=DATASET["orig_size"], mode='bilinear', align_corners=True)
+            targets = torch.nn.functional.interpolate(targets.float(), size=DATASET["orig_size"], mode='nearest')
 
         outputs = outputs.detach().cpu()
         if not EVAL["test_mode"]:
