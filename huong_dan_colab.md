@@ -78,9 +78,9 @@ Giám sát toàn bộ các làn đường chạy song song:
 
 > [!NOTE]
 > *   Cờ `--headless` đảm bảo chương trình chạy nền không mở cửa sổ hiển thị đồ họa OpenCV (bắt buộc trên Colab).
-> *   Cờ `--split_road` giúp giới hạn hành lang an toàn màu xanh lá ở làn bên phải và dịch chuyển tâm `MY CAR` sang bên phải (khắc phục hiện tượng tâm xe bị đè lên vạch phân làn ở giữa).
-> *   Cờ `--skip_frames 3` giúp tăng tốc độ xử lý video lên gấp 3 lần bằng cách bỏ qua bớt các khung hình trung gian (rất hữu ích cho Video 2 dung lượng lớn ~98MB).
-> *   Nhờ có **GPU T4**, tốc độ xử lý sẽ đạt mức **~30 FPS** (Thời gian thực).
+> *   Cờ `--split_road` giúp kích hoạt chế độ tự định vị làn đường Ego di chuyển thông minh (tự động bình chọn và khóa cứng sau 45 khung hình đầu tiên để tránh nhấp nháy HUD).
+> *   Cờ `--skip_frames 3` giúp tăng tốc độ xử lý video lên gấp 3 lần bằng cách bỏ qua bớt các khung hình trung gian (rất hữu ích cho các video dung lượng lớn).
+> *   Nhờ có **GPU T4**, tốc độ xử lý sẽ đạt mức cực cao (thời gian thực).
 
 ---
 
