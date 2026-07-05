@@ -89,6 +89,8 @@ parser.add_argument('--headless', action='store_true', help="Chay khong can hien
 parser.add_argument('--split_road', action='store_true', help="Ep buoc giam sat chia lan (chi quan sat lan ben phai cua minh, bo qua lan trai)")
 parser.add_argument('--left_ego', action='store_true', help="Thiet lap lan Ego nam ben trai dai phan cach (mac dinh la ben phai)")
 parser.add_argument('--config_path', type=str, default="config/train_config.yaml", help="Duong dan den file config yaml")
+parser.add_argument('--center_ego', action='store_true', help="Thiet lap lan Ego nam o chinh giua camera (dành cho các video camera hành trình xe ô tô ở giữa làn)")
+parser.add_argument('--no_human', action='store_true', help="Bo qua nhan dien va ve hop bao hop Human (nguoi di bo) de tranh nhiễu tren cao toc/camera hành trình")
 args = parser.parse_args()
 
 video_path = args.video_path
@@ -405,6 +407,10 @@ class InferenceThread(threading.Thread):
                     detected_obstacles, seg_mask_full, depth_map,
                     self.use_fallback_detection, num_classes
                 )
+                
+                # Lọc bỏ người đi bộ nếu kích hoạt flag --no_human
+                if args.no_human:
+                    fused_obstacles = [det for det in fused_obstacles if det['type'] != 'human']
 
                 # Keep a clean copy of the road segmentation mask before overwriting target bounding boxes
                 seg_mask_road = seg_mask_full.copy()
@@ -757,9 +763,11 @@ try:
                         ], dtype=np.int32)
                         is_in_lane = (cv2.pointPolygonTest(ego_poly_orig, (x_center_orig, y_center_orig), False) >= 0)
                     else:
-                        # Tự động nhận diện hướng làn Ego dựa trên phương tiện gần camera nhất hoặc tham số --left_ego
                         use_left_ego = args.left_ego
-                        if not use_left_ego and active_tracks:
+                        use_center_ego = args.center_ego
+                        
+                        # Tự động nhận diện hướng làn Ego dựa trên phương tiện gần camera nhất hoặc tham số --left_ego
+                        if not use_left_ego and not use_center_ego and active_tracks:
                             vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
                             if vehicles_near:
                                 closest_v = min(vehicles_near, key=lambda t: 1000.0 / (t['depth_history'][-1] + 1e-5))
@@ -770,7 +778,13 @@ try:
                                     if vx_center < w * 0.45:
                                         use_left_ego = True
                                         
-                        if pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top and not use_left_ego:
+                        if use_center_ego:
+                            # Cấu hình làn Ego nằm chính giữa camera (cho xe đi giữa làn)
+                            x1_l, y1_l = int(w * 0.15), int(h * 0.95)
+                            x2_l, y2_l = int(w * 0.42), int(h * 0.55)
+                            x1_r, y1_r = int(w * 0.85), int(h * 0.95)
+                            x2_r, y2_r = int(w * 0.58), int(h * 0.55)
+                        elif pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top and not use_left_ego:
                             x1_l, y1_l = pt_left_bottom
                             x2_l, y2_l = pt_left_top
                             x1_r, y1_r = pt_right_bottom
@@ -786,6 +800,12 @@ try:
                             x2_l, y2_l = int(w * 0.48), int(h * 0.55)
                             x1_r, y1_r = int(w * 0.98), int(h * 0.95)
                             x2_r, y2_r = int(w * 0.65), int(h * 0.55)
+                            
+                        # Cập nhật ngược lại các điểm lane để phần vẽ đè sử dụng đúng các điểm đã chọn
+                        pt_left_bottom = (x1_l, y1_l)
+                        pt_left_top = (x2_l, y2_l)
+                        pt_right_bottom = (x1_r, y1_r)
+                        pt_right_top = (x2_r, y2_r)
                             
                         if abs(y1_l - y2_l) > 0:
                             x_div_left = x2_l + (y_center_orig - y2_l) * (x1_l - x2_l) / (y1_l - y2_l)
