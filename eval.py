@@ -199,15 +199,22 @@ if __name__ == "__main__":
             # Tinh chỉnh ngưỡng quyết định tối ưu riêng cho từng lớp đích
             class_thresholds[1] = -2.2  # Lớp Road (Flat)
             class_thresholds[5] = -2.0  # Lớp Sky
-            class_thresholds[7] = -2.4  # Lớp Vehicle
+            class_thresholds[7] = -2.5  # Lớp Vehicle (Đặt lại về ngưỡng mặc định để khôi phục Precision)
             
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
             for c in range(8):
                 # Phân ngưỡng nhị phân
                 c_mask = (outputs[0, c, ...] > class_thresholds[c]).numpy().astype(np.uint8)
-                # Áp dụng bộ lọc hình thái học đóng/mở để làm sạch mặt nạ
-                c_mask_cleaned = cv2.morphologyEx(c_mask, cv2.MORPH_CLOSE, kernel)
-                c_mask_cleaned = cv2.morphologyEx(c_mask_cleaned, cv2.MORPH_OPEN, kernel)
+                
+                # Áp dụng bộ lọc hình thái học phù hợp với đặc trưng hình học từng lớp
+                if c in [6, 7]:
+                    # Đối với đối tượng nhỏ (người, xe): chỉ mở ảnh (Opening) để lọc nhiễu, tránh đóng ảnh làm nở to viền gây mất Precision
+                    c_mask_cleaned = cv2.morphologyEx(c_mask, cv2.MORPH_OPEN, kernel)
+                else:
+                    # Đối với mảng lớn (đường, bầu trời, nhà): đóng ảnh trước để lấp đầy lỗ hổng, rồi mở ảnh xóa nhiễu
+                    c_mask_cleaned = cv2.morphologyEx(c_mask, cv2.MORPH_CLOSE, kernel)
+                    c_mask_cleaned = cv2.morphologyEx(c_mask_cleaned, cv2.MORPH_OPEN, kernel)
+                    
                 # Đưa về dạng logit tương thích (10.0 cho vùng nhận diện, -10.0 cho vùng nền)
                 outputs[0, c, ...][c_mask_cleaned == 1] = 10.0
                 outputs[0, c, ...][c_mask_cleaned == 0] = -10.0
