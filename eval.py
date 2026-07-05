@@ -195,11 +195,12 @@ if __name__ == "__main__":
         
         # Hậu xử lý nâng cao (Morphological Post-processing & Threshold Tuning) để tăng IoU/Dice mà không cần train lại
         if outputs.shape[1] == 8 and not EVAL["test_mode"]:
-            class_thresholds = [-2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5]
+            default_thresh = EVAL.get("base_threshold", 0.0)
+            class_thresholds = [default_thresh] * 8
             # Tinh chỉnh ngưỡng quyết định tối ưu riêng cho từng lớp đích
             class_thresholds[1] = -2.2  # Lớp Road (Flat)
             class_thresholds[5] = -2.0  # Lớp Sky
-            class_thresholds[7] = -2.5  # Lớp Vehicle (Đặt lại về ngưỡng mặc định để khôi phục Precision)
+            class_thresholds[7] = default_thresh  # Lớp Vehicle (Trở lại ngưỡng mặc định để khôi phục Precision)
             
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
             for c in range(8):
