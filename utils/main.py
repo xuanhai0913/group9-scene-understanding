@@ -758,54 +758,73 @@ try:
             
             h, w = seg_mask_full.shape[:2]
             
-            # Xác định kiểu làn Ego (chạy bình chọn nếu là camera tĩnh, khóa cứng Center nếu là camera di động)
+            # Xác định kiểu làn Ego (chạy bình chọn tự thích ứng dựa trên vị trí của xe dẫn đường phía trước)
             if args.left_ego or args.center_ego:
                 use_left_ego = args.left_ego
                 use_center_ego = args.center_ego
             else:
-                if not is_full_road and not camera_is_static:
-                    # Camera di động (Dashcam) -> Luôn luôn đi giữa làn (Center Ego), không cần bình chọn
-                    use_left_ego = False
-                    use_center_ego = True
-                else:
-                    # Camera tĩnh (CCTV) -> Tiến hành bình chọn để xem xe cộ đi bên trái hay bên phải
-                    if not hasattr(tracker, 'left_ego_votes'):
-                        tracker.left_ego_votes = 0
-                        tracker.lane_type_decided = False
-                        tracker.final_use_left_ego = False
-                        tracker.final_use_center_ego = False
-                        tracker.frame_count_for_lane = 0
-                    
-                    tracker.frame_count_for_lane += 1
-                    
-                    if not tracker.lane_type_decided:
-                        if active_tracks:
-                            vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
-                            if vehicles_near:
-                                closest_v = min(vehicles_near, key=lambda t: 1000.0 / (t['depth_history'][-1] + 1e-5))
-                                d_v = 1000.0 / (closest_v['depth_history'][-1] + 1e-5)
-                                if d_v < 15.0:
-                                    vx1, _, vx2, _ = closest_v['box']
-                                    vx_center = (vx1 + vx2) // 2
-                                    if vx_center < w * 0.45:
-                                        tracker.left_ego_votes += 1
-                                        
-                        if tracker.frame_count_for_lane >= 45:
-                            tracker.lane_type_decided = True
-                            if tracker.left_ego_votes >= 5: # Có ít nhất 5 khung hình phát hiện xe sát trái
-                                tracker.final_use_left_ego = True
-                                tracker.final_use_center_ego = False
-                            else:
-                                tracker.final_use_left_ego = False
-                                tracker.final_use_center_ego = False # Mặc định làn bên phải cho CCTV
-                            print(f"[AUTO-DETECTION] CCTV Lane style locked: left_ego = {tracker.final_use_left_ego}")
+                if not hasattr(tracker, 'left_ego_votes'):
+                    tracker.left_ego_votes = 0
+                    tracker.right_ego_votes = 0
+                    tracker.center_ego_votes = 0
+                    tracker.lane_type_decided = False
+                    tracker.final_use_left_ego = False
+                    tracker.final_use_center_ego = False
+                    tracker.frame_count_for_lane = 0
+                
+                tracker.frame_count_for_lane += 1
+                
+                if not tracker.lane_type_decided:
+                    if active_tracks:
+                        vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
+                        if vehicles_near:
+                            # Lọc các xe ở khoảng cách dẫn đường hợp lý từ 4m đến 25m
+                            valid_v = []
+                            for t in vehicles_near:
+                                d = 1000.0 / (t['depth_history'][-1] + 1e-5)
+                                if 4.0 <= d <= 25.0:
+                                    valid_v.append((t, d))
+                            if valid_v:
+                                closest_v, d_v = min(valid_v, key=lambda x: x[1])
+                                vx1, _, vx2, _ = closest_v['box']
+                                vx_center = (vx1 + vx2) // 2
+                                if vx_center < w * 0.38:
+                                    tracker.left_ego_votes += 1
+                                elif vx_center > w * 0.62:
+                                    tracker.right_ego_votes += 1
+                                else:
+                                    tracker.center_ego_votes += 1
+                                    
+                    if tracker.frame_count_for_lane >= 45:
+                        tracker.lane_type_decided = True
+                        max_votes = max(tracker.left_ego_votes, tracker.center_ego_votes, tracker.right_ego_votes)
                         
-                        # Quyết định tạm thời trong thời gian bình chọn 45 khung hình đầu
-                        use_left_ego = (tracker.left_ego_votes >= 1)
-                        use_center_ego = False
-                    else:
-                        use_left_ego = tracker.final_use_left_ego
-                        use_center_ego = tracker.final_use_center_ego
+                        if max_votes == 0:
+                            # Nếu không có xe nào đi trước, mặc định theo chuyển động camera
+                            if not is_full_road and not camera_is_static:
+                                tracker.final_use_center_ego = True
+                            else:
+                                tracker.final_use_center_ego = False
+                        elif max_votes == tracker.left_ego_votes:
+                            tracker.final_use_left_ego = True
+                            tracker.final_use_center_ego = False
+                        elif max_votes == tracker.center_ego_votes:
+                            tracker.final_use_left_ego = False
+                            if not is_full_road:
+                                tracker.final_use_center_ego = True
+                            else:
+                                tracker.final_use_center_ego = False
+                        else:
+                            tracker.final_use_left_ego = False
+                            tracker.final_use_center_ego = False
+                        print(f"[AUTO-DETECTION] Lane style locked: left_votes={tracker.left_ego_votes}, center_votes={tracker.center_ego_votes}, right_votes={tracker.right_ego_votes}. Locked: left_ego={tracker.final_use_left_ego}, center_ego={tracker.final_use_center_ego}")
+                    
+                    # Quyết định tạm thời trong thời gian bình chọn
+                    use_left_ego = (tracker.left_ego_votes > tracker.center_ego_votes and tracker.left_ego_votes > tracker.right_ego_votes)
+                    use_center_ego = not use_left_ego and not is_full_road
+                else:
+                    use_left_ego = tracker.final_use_left_ego
+                    use_center_ego = tracker.final_use_center_ego
             
             # Cập nhật các điểm ranh giới làn dựa trên chế độ làn được chọn (chạy một lần mỗi khung hình)
             if not is_full_road:
