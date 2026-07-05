@@ -52,11 +52,11 @@ Mỗi khung hình video đầu vào đi qua 2 luồng xử lý song song trướ
 
 ### 2.3. Thuật toán tự động nhận diện loại Camera & Chọn hướng làn (Ego-Motion & Dynamic Lane Selector)
 *   **Luồng quang học (Optical Flow):** Sử dụng thuật toán Lucas-Kanade đo sự dịch chuyển các điểm đặc trưng tĩnh ở hậu cảnh. Nếu độ dịch chuyển trung bình $< 0.55$ pixel/khung hình $\rightarrow$ Kết luận Camera cố định (CCTV) và tự động bật **Giám sát toàn phần (Full Road)**.
-*   **Chọn làn động (Dynamic Lane Selection):** Nếu là Camera di chuyển (Dashcam), hệ thống so sánh tâm chiếc xe gần xe ta nhất: nếu nó nằm ở bên trái $\rightarrow$ tự động cấu hình làn Ego màu tím nằm lệch trái dải phân cách.
+*   **Chọn làn động (Self-Adaptive Lane Selection):** Nếu chạy chế độ chia làn, hệ thống bình chọn trong 45 khung hình đầu tiên dựa trên hướng của các xe dẫn đường (lead vehicle) đi cùng chiều phía trước (lọc bằng độ sâu và chuyển động tương đối `delta_d < 0.25` để tránh nhiễu ngược chiều/đỗ xe). Sau đó khóa cứng hướng làn (làn trái, làn giữa hoặc làn phải) cho đến hết video để tránh nhấp nháy HUD.
 
 ### 2.4. Logic quyết định cảnh báo va chạm (Collision Alert Decision)
 *   Sử dụng hàm kiểm tra điểm trong đa giác (`cv2.pointPolygonTest`) để xác định xem điểm tiếp xúc bánh xe của phương tiện phía trước có nằm trong đa giác làn đường động đã dựng hay không.
-*   Nếu nằm trong làn hiện tại của xe chủ:
+*   Nếu nằm trong làn hiện tại của xe chủ (Ego Lane - Màu Xanh Lá Cây):
     *   Kiểm tra chỉ số tương đối $d_{rel}$.
     *   Nếu chỉ số thỏa điều kiện cảnh báo heuristic của demo (khoảng cách tương đối < 4.5) thì hiển thị banner đỏ và đổi màu khung bao thành đỏ.
     *   Ngược lại, hiển thị khung bao màu xanh lá/vàng bình thường.

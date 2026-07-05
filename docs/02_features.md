@@ -35,11 +35,13 @@ Hệ thống đã triển khai phân đoạn ngữ cảnh toàn diện và phân
 *   **Camera Cố định (CCTV):** Tốc độ dịch chuyển nền bằng 0 $\rightarrow$ Tự động chuyển sang chế độ **Giám sát toàn diện mặt đường (Full Road)**.
 *   **Camera Hành trình (Dashcam):** Tốc độ dịch chuyển nền lớn hơn ngưỡng $\rightarrow$ Tự động chuyển sang chế độ **Chia làn đường (Split Road)** để hỗ trợ lái xe an toàn.
 
-## 5. Bộ định vị làn di chuyển động (Dynamic Ego-Lane Selector)
-*   Khi chạy chế độ chia làn đường, hệ thống tự động quét phương tiện ở cự ly gần nhất. 
-*   Nếu phương tiện gần nhất ở nửa trái màn hình (như làn xe máy ở video TP. HCM) $\rightarrow$ Tự động kéo mặt nạ làn đường chính (Ego Lane - màu tím) sang trái dải phân cách và vẽ vạch ngăn cách màu vàng đè khớp lên dải phân cách cứng.
-*   Ngược lại, mặc định làn chính sẽ nằm bên phải dải phân cách.
+## 5. Bộ định vị làn tự thích ứng thông minh (Self-Adaptive Lead-Vehicle Guided Lane Selector)
+*   Khi chạy chế độ chia làn đường (`--split_road`), hệ thống chạy cơ chế bình chọn thông minh trong 45 khung hình đầu tiên dựa trên hướng của các xe dẫn đường (lead vehicle) đi cùng chiều phía trước (lọc bằng độ sâu và chuyển động tương đối `delta_d < 0.25` để loại bỏ xe ngược chiều và xe đỗ bên đường):
+    *   **Làn bên trái (Left Ego):** Thích hợp cho xe máy đi làn trái (Video 1 TP. HCM) hoặc xe chạy ở quốc gia đi bên trái (Anh, Nhật). Hệ thống vẽ làn Ego ở bên trái và vẽ vạch đứt màu vàng đè lên dải phân cách cứng ở giữa.
+    *   **Làn ở giữa (Center Ego):** Thích hợp cho ô tô đi giữa làn (Video 2 Dashcam). Hệ thống vẽ làn Ego ở giữa (dịch trái nhẹ 8% để khớp thực tế xe chạy) với cả hai biên màu xanh lá cây.
+    *   **Làn bên phải (Right Ego):** Mặc định cho camera tĩnh nếu có xe đi lệch phải.
+*   Sau 45 khung hình, hệ thống sẽ **khóa cứng (lock)** kiểu làn đường này để giữ giao diện hiển thị ổn định 100%, không bị nhấp nháy hoặc thay đổi đột ngột.
 
 ## 6. Cảnh báo va chạm tức thời (Instant Collision Alert)
-*   Tính toán va chạm thông minh chỉ áp dụng cho phương tiện đi cùng làn di chuyển chính (Ego Lane - màu tím). Phương tiện ở làn đối diện hoặc vỉa hè sẽ không bị cảnh báo sai lệch.
+*   Tính toán va chạm thông minh chỉ áp dụng cho phương tiện đi cùng làn di chuyển chính (Ego Lane - Màu Xanh Lá Cây). Phương tiện ở làn đối diện hoặc vỉa hè sẽ không bị cảnh báo sai lệch.
 *   Khi chỉ số tương đối thỏa điều kiện cảnh báo heuristic (khoảng cách tương đối < 4.5), HUD hiển thị banner đỏ `COLLISION WARNING: Obstacle too close!`. Đây là minh họa nghiên cứu, không phải hệ thống cảnh báo an toàn đã hiệu chuẩn.
