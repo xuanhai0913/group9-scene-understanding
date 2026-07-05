@@ -16,7 +16,6 @@ from torch.utils.data import DataLoader
 
 from utils import Meter, UnetResNet, load_train_config, CityscapesTestDataset, torch2np, \
                   CityscapesTrainDataset, CityscapesDataset, open_img
-# from utils import KittiTrainDataset, KittiTestDataset, KittiLaneDataset, FPN
 
 warnings.filterwarnings("ignore")
 seed = 69
@@ -84,10 +83,6 @@ if __name__ == "__main__":
             train_dataset = CityscapesTrainDataset(**PATHS["CITYSCAPES"])
             trainset, valset = train_dataset.get_paths()
             image_dataset = CityscapesDataset(**DATASET)
-        # elif TARGET == "kitti":
-        #     train_dataset = KittiTrainDataset(**PATHS["KITTI"])
-        #     trainset, valset = train_dataset.get_paths()
-        #     image_dataset = KittiLaneDataset(**DATASET)
         else:
             raise ValueError(f"Unsupported validation target: {TARGET}")
 
@@ -98,9 +93,6 @@ if __name__ == "__main__":
         if TARGET == "cityscapes":
             testset = CityscapesTestDataset(PATHS["CITYSCAPES"]["test_root_path"])
             image_dataset = CityscapesDataset(**DATASET)
-        # elif TARGET == "kitti":
-        #     testset = KittiTestDataset(PATHS["KITTI"]["test_root_path"])
-        #     image_dataset = KittiLaneDataset(**DATASET)
         else:
             raise ValueError(f"Unsupported testing target: {TARGET}")
 
@@ -137,30 +129,6 @@ if __name__ == "__main__":
                 continue
         if not loaded:
             raise RuntimeError("Failed to load UNet checkpoint with any candidate backbone.")
-    # elif MODEL["mode"] == "FPN":
-    #     backbone_candidates = [MODEL["backbone"], "resnext50", "resnet18", "resnet34", "resnet50"]
-    #     loaded = False
-    #     for candidate in backbone_candidates:
-    #         try:
-    #             print(f"[INFO] Attempting to load FPN with backbone: {candidate}...")
-    #             model = FPN(encoder_name=candidate,
-    #                         decoder_pyramid_channels=256,
-    #                         decoder_segmentation_channels=128,
-    #                         classes=num_classes,
-    #                         dropout=0.2,
-    #                         activation='sigmoid',
-    #                         final_upsampling=4,
-    #                         decoder_merge_policy='add')
-    #             model.to(device)
-    #             model.load_state_dict(state_dict)
-    #             loaded = True
-    #             print(f"[INFO] Successfully loaded FPN checkpoint with backbone: {candidate}")
-    #             break
-    #         except Exception as e:
-    #             print(f"[WARNING] Failed loading with backbone {candidate}: {e}")
-    #             continue
-    #     if not loaded:
-    #         raise RuntimeError("Failed to load FPN checkpoint with any candidate backbone.")
     else:
         raise ValueError('Model type is not correct: `{}`.'.format(MODEL["mode"]))
 
