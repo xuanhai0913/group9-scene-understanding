@@ -2,7 +2,7 @@ import re
 import argparse
 
 from torchsummary import summary
-from utils import UnetResNet, FPN
+from utils import UnetResNet
 import torch
 
 if __name__ == "__main__":
@@ -25,16 +25,6 @@ if __name__ == "__main__":
                            num_filters=32, 
                            Dropout=0.3, 
                            res_blocks_dec=bool(unet_res_blocks))
-
-    elif model_type == "fpn":
-        model = FPN(encoder_name=backbone,
-                    decoder_pyramid_channels=256,
-                    decoder_segmentation_channels=128,
-                    classes=num_classes,
-                    dropout=0.3,
-                    activation='sigmoid',
-                    final_upsampling=4,
-                    decoder_merge_policy='add')
     else:
         raise ValueError('Model type is not correct: `{}`.'.format(model_type))
 

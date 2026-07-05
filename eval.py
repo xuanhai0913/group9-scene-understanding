@@ -14,8 +14,7 @@ import cv2
 import torch
 from torch.utils.data import DataLoader
 
-from utils import Meter, UnetResNet, FPN, load_train_config, CityscapesTestDataset, torch2np, \
-                  KittiTrainDataset, KittiTestDataset, KittiLaneDataset, \
+from utils import Meter, UnetResNet, load_train_config, CityscapesTestDataset, torch2np, \
                   CityscapesTrainDataset, CityscapesDataset, open_img
 
 warnings.filterwarnings("ignore")
@@ -80,27 +79,22 @@ if __name__ == "__main__":
 
     if not EVAL["test_mode"]:
 
-        if TARGET == "kitti":
-            train_dataset = KittiTrainDataset(**PATHS["KITTI"])
-            trainset, valset = train_dataset.get_paths()
-            image_dataset = KittiLaneDataset(**DATASET)
-
-        elif TARGET == "cityscapes":
+        if TARGET == "cityscapes":
             train_dataset = CityscapesTrainDataset(**PATHS["CITYSCAPES"])
             trainset, valset = train_dataset.get_paths()
             image_dataset = CityscapesDataset(**DATASET)
+        else:
+            raise ValueError(f"Unsupported validation target: {TARGET}")
 
         image_dataset.set_phase("val", valset)
 
     else:
 
-        if TARGET == "kitti":
-            testset = KittiTestDataset(PATHS["KITTI"]["test_root_path"])
-            image_dataset = KittiLaneDataset(**DATASET)
-        
-        elif TARGET == "cityscapes":
+        if TARGET == "cityscapes":
             testset = CityscapesTestDataset(PATHS["CITYSCAPES"]["test_root_path"])
             image_dataset = CityscapesDataset(**DATASET)
+        else:
+            raise ValueError(f"Unsupported testing target: {TARGET}")
 
         image_dataset.set_phase("test", testset)
 
@@ -135,31 +129,6 @@ if __name__ == "__main__":
                 continue
         if not loaded:
             raise RuntimeError("Failed to load UNet checkpoint with any candidate backbone.")
-            
-    elif MODEL["mode"] == "FPN":
-        backbone_candidates = [MODEL["backbone"], "resnext50", "resnet18", "resnet34", "resnet50"]
-        loaded = False
-        for candidate in backbone_candidates:
-            try:
-                print(f"[INFO] Attempting to load FPN with backbone: {candidate}...")
-                model = FPN(encoder_name=candidate,
-                            decoder_pyramid_channels=256,
-                            decoder_segmentation_channels=128,
-                            classes=num_classes,
-                            dropout=0.2,
-                            activation='sigmoid',
-                            final_upsampling=4,
-                            decoder_merge_policy='add')
-                model.to(device)
-                model.load_state_dict(state_dict)
-                loaded = True
-                print(f"[INFO] Successfully loaded FPN checkpoint with backbone: {candidate}")
-                break
-            except Exception as e:
-                print(f"[WARNING] Failed loading with backbone {candidate}: {e}")
-                continue
-        if not loaded:
-            raise RuntimeError("Failed to load FPN checkpoint with any candidate backbone.")
     else:
         raise ValueError('Model type is not correct: `{}`.'.format(MODEL["mode"]))
 
@@ -233,10 +202,6 @@ if __name__ == "__main__":
                 outputs[0, c, ...][c_mask_cleaned == 1] = 10.0
                 outputs[0, c, ...][c_mask_cleaned == 0] = -10.0
         
-        # Neu dataset la KITTI (1 lop) nhung model co 8 lop (Cityscapes), ta trich xuat lop "road" (lop 1) de danh gia
-        if outputs.shape[1] == 8 and targets.shape[1] == 1:
-            outputs = outputs[:, 1:2, ...]
-            
         if not EVAL["test_mode"]:
             meter.update("val", targets, outputs)
             # Accumulate TP, TN, FP, FN per class
