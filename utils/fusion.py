@@ -226,6 +226,13 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
                     # Bỏ qua người đi bộ phát hiện nhầm trên tán cây/bầu trời
                     if y + h < sky_cutoff:
                         continue
+                    
+                    # Bộ lọc tỷ lệ khung hình (Aspect Ratio Filter): Con người đi bộ/đứng thẳng phải có chiều cao > chiều rộng
+                    # Các mảng nhiễu vỉa hè, hàng rào, dải phân cách thường nằm ngang và dẹt (w > h)
+                    aspect_ratio = w / float(h)
+                    if aspect_ratio > 0.85:
+                        continue
+                        
                     overlap = False
                     for det in fused_detections:
                         if det['type'] == 'human':
