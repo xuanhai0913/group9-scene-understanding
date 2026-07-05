@@ -783,7 +783,8 @@ try:
                             valid_v = []
                             for t in vehicles_near:
                                 d = 1000.0 / (t['depth_history'][-1] + 1e-5)
-                                if 4.0 <= d <= 25.0 and len(t['depth_history']) >= 8:
+                                delta_d = t.get('delta_d', 0.0)
+                                if 4.0 <= d <= 25.0 and len(t['depth_history']) >= 8 and delta_d < 0.25:
                                     valid_v.append((t, d))
                             if valid_v:
                                 closest_v, d_v = min(valid_v, key=lambda x: x[1])
