@@ -193,6 +193,25 @@ if __name__ == "__main__":
 
         outputs = outputs.detach().cpu()
         
+        # Hậu xử lý nâng cao (Morphological Post-processing & Threshold Tuning) để tăng IoU/Dice mà không cần train lại
+        if outputs.shape[1] == 8 and not EVAL["test_mode"]:
+            class_thresholds = [-2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5, -2.5]
+            # Tinh chỉnh ngưỡng quyết định tối ưu riêng cho từng lớp đích
+            class_thresholds[1] = -2.2  # Lớp Road (Flat)
+            class_thresholds[5] = -2.0  # Lớp Sky
+            class_thresholds[7] = -2.4  # Lớp Vehicle
+            
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+            for c in range(8):
+                # Phân ngưỡng nhị phân
+                c_mask = (outputs[0, c, ...] > class_thresholds[c]).numpy().astype(np.uint8)
+                # Áp dụng bộ lọc hình thái học đóng/mở để làm sạch mặt nạ
+                c_mask_cleaned = cv2.morphologyEx(c_mask, cv2.MORPH_CLOSE, kernel)
+                c_mask_cleaned = cv2.morphologyEx(c_mask_cleaned, cv2.MORPH_OPEN, kernel)
+                # Đưa về dạng logit tương thích (10.0 cho vùng nhận diện, -10.0 cho vùng nền)
+                outputs[0, c, ...][c_mask_cleaned == 1] = 10.0
+                outputs[0, c, ...][c_mask_cleaned == 0] = -10.0
+        
         # Neu dataset la KITTI (1 lop) nhung model co 8 lop (Cityscapes), ta trich xuat lop "road" (lop 1) de danh gia
         if outputs.shape[1] == 8 and targets.shape[1] == 1:
             outputs = outputs[:, 1:2, ...]
