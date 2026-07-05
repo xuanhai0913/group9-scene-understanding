@@ -761,7 +761,7 @@ try:
                                     if vx_center < w * 0.45:
                                         use_left_ego = True
                                         
-                        if pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top:
+                        if pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top and not use_left_ego:
                             x1_l, y1_l = pt_left_bottom
                             x2_l, y2_l = pt_left_top
                             x1_r, y1_r = pt_right_bottom
