@@ -758,23 +758,50 @@ try:
             
             h, w = seg_mask_full.shape[:2]
             
-            # Xác định kiểu làn Ego một lần cho mỗi khung hình (tránh lỗi NameError khi active_tracks rỗng)
-            use_left_ego = args.left_ego
-            use_center_ego = args.center_ego
-            if not use_left_ego and not use_center_ego:
-                if not is_full_road:
-                    use_center_ego = True
-                if active_tracks:
-                    vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
-                    if vehicles_near:
-                        closest_v = min(vehicles_near, key=lambda t: 1000.0 / (t['depth_history'][-1] + 1e-5))
-                        d_v = 1000.0 / (closest_v['depth_history'][-1] + 1e-5)
-                        if d_v < 15.0:
-                            vx1, _, vx2, _ = closest_v['box']
-                            vx_center = (vx1 + vx2) // 2
-                            if vx_center < w * 0.45:
-                                use_left_ego = True
-                                use_center_ego = False
+            # Xác định kiểu làn Ego (chạy bình chọn và khóa cứng sau 45 khung hình để tránh nhấp nháy giao diện)
+            if args.left_ego or args.center_ego:
+                use_left_ego = args.left_ego
+                use_center_ego = args.center_ego
+            else:
+                if not hasattr(tracker, 'left_ego_votes'):
+                    tracker.left_ego_votes = 0
+                    tracker.lane_type_decided = False
+                    tracker.final_use_left_ego = False
+                    tracker.final_use_center_ego = False
+                    tracker.frame_count_for_lane = 0
+                
+                tracker.frame_count_for_lane += 1
+                
+                if not tracker.lane_type_decided:
+                    if active_tracks:
+                        vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
+                        if vehicles_near:
+                            closest_v = min(vehicles_near, key=lambda t: 1000.0 / (t['depth_history'][-1] + 1e-5))
+                            d_v = 1000.0 / (closest_v['depth_history'][-1] + 1e-5)
+                            if d_v < 15.0:
+                                vx1, _, vx2, _ = closest_v['box']
+                                vx_center = (vx1 + vx2) // 2
+                                if vx_center < w * 0.45:
+                                    tracker.left_ego_votes += 1
+                                    
+                    if tracker.frame_count_for_lane >= 45:
+                        tracker.lane_type_decided = True
+                        if tracker.left_ego_votes >= 5: # Có ít nhất 5 khung hình phát hiện xe sát trái
+                            tracker.final_use_left_ego = True
+                            tracker.final_use_center_ego = False
+                        else:
+                            if not is_full_road:
+                                tracker.final_use_center_ego = True
+                            else:
+                                tracker.final_use_center_ego = False
+                        print(f"[AUTO-DETECTION] Lane style locked: left_ego = {tracker.final_use_left_ego}, center_ego = {tracker.final_use_center_ego}")
+                    
+                    # Quyết định tạm thời trong thời gian bình chọn 45 khung hình đầu
+                    use_left_ego = (tracker.left_ego_votes >= 1)
+                    use_center_ego = not use_left_ego and not is_full_road
+                else:
+                    use_left_ego = tracker.final_use_left_ego
+                    use_center_ego = tracker.final_use_center_ego
             
             # Cập nhật các điểm ranh giới làn dựa trên chế độ làn được chọn (chạy một lần mỗi khung hình)
             if not is_full_road:
