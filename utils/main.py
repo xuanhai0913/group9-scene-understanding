@@ -958,29 +958,50 @@ try:
                     cv2.fillPoly(poly_mask, [lane_pts_disp], 255)
                     overlay[poly_mask == 255] = (0, 255, 0)
                     
-                    line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
-                    cv2.line(line_mask, disp_pt_left_bottom, disp_pt_left_top, 255, 2)
-                    cv2.line(line_mask, disp_pt_right_bottom, disp_pt_right_top, 255, 2)
+                    # Xác định biên phân tách dải phân cách (màu vàng nét đứt) và biên làn ngoài (màu xanh lá)
+                    p_yellow_1, p_yellow_2 = None, None
+                    if use_left_ego:
+                        # Làn xe máy bên trái: dải phân cách cứng nằm bên phải
+                        p_yellow_1, p_yellow_2 = disp_pt_right_bottom, disp_pt_right_top
+                        p_green_1, p_green_2 = disp_pt_left_bottom, disp_pt_left_top
+                    elif not use_center_ego:
+                        # Làn ô tô bên phải: dải phân cách cứng nằm bên trái
+                        p_yellow_1, p_yellow_2 = disp_pt_left_bottom, disp_pt_left_top
+                        p_green_1, p_green_2 = disp_pt_right_bottom, disp_pt_right_top
+                    else:
+                        # Làn chính giữa (Dashcam): Cả hai bên đều là vạch làn bình thường (vẽ màu xanh lá cây)
+                        p_green_1_l, p_green_2_l = disp_pt_left_bottom, disp_pt_left_top
+                        p_green_1_r, p_green_2_r = disp_pt_right_bottom, disp_pt_right_top
                     
                     blended = cv2.addWeighted(overlay, 0.15, output_frame, 0.85, 0)
                     mask_indices = (poly_mask == 255) & road_mask
                     output_frame[mask_indices] = blended[mask_indices]
                     
-                    output_frame[(line_mask == 255) & road_mask] = (0, 255, 0)
-                    
-                    p1, p2 = disp_pt_left_bottom, disp_pt_left_top
-                    num_segments = 15
-                    for i in range(num_segments):
-                        t1 = i / num_segments
-                        t2 = min(1.0, (i + 0.5) / num_segments)
-                        sub_pt1 = (int(p1[0] + t1 * (p2[0] - p1[0])), int(p1[1] + t1 * (p2[1] - p1[1])))
-                        sub_pt2 = (int(p1[0] + t2 * (p2[0] - p1[0])), int(p1[1] + t2 * (p2[1] - p1[1])))
+                    line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
+                    if p_yellow_1 is None:
+                        # Vẽ cả hai biên làn màu xanh lá cây
+                        cv2.line(line_mask, p_green_1_l, p_green_2_l, 255, 2)
+                        cv2.line(line_mask, p_green_1_r, p_green_2_r, 255, 2)
+                        output_frame[(line_mask == 255) & road_mask] = (0, 255, 0)
+                    else:
+                        # Vẽ biên làn ngoài màu xanh lá cây
+                        cv2.line(line_mask, p_green_1, p_green_2, 255, 2)
+                        output_frame[(line_mask == 255) & road_mask] = (0, 255, 0)
                         
-                        seg_line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
-                        cv2.line(seg_line_mask, sub_pt1, sub_pt2, 255, 2)
-                        output_frame[(seg_line_mask == 255) & road_mask] = (0, 255, 255)
-                        
-                    cv2.putText(output_frame, "LANE SEPARATOR", (disp_pt_left_top[0] - int(10 * (disp_w / 640.0)), disp_pt_left_top[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, annot_scale, (0, 255, 255), annot_thickness, cv2.LINE_AA)
+                        # Vẽ nét đứt màu vàng cho dải phân cách (LANE SEPARATOR) đè khớp lên dải phân cách cứng
+                        num_segments = 15
+                        for i in range(num_segments):
+                            t1 = i / num_segments
+                            t2 = min(1.0, (i + 0.5) / num_segments)
+                            sub_pt1 = (int(p_yellow_1[0] + t1 * (p_yellow_2[0] - p_yellow_1[0])), int(p_yellow_1[1] + t1 * (p_yellow_2[1] - p_yellow_1[1])))
+                            sub_pt2 = (int(p_yellow_1[0] + t2 * (p_yellow_2[0] - p_yellow_1[0])), int(p_yellow_1[1] + t2 * (p_yellow_2[1] - p_yellow_1[1])))
+                            
+                            seg_line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
+                            cv2.line(seg_line_mask, sub_pt1, sub_pt2, 255, 2)
+                            output_frame[(seg_line_mask == 255) & road_mask] = (0, 255, 255)
+                            
+                        # Ghi nhãn LANE SEPARATOR
+                        cv2.putText(output_frame, "LANE SEPARATOR", (p_yellow_2[0] - int(10 * (disp_w / 640.0)), p_yellow_2[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, annot_scale, (0, 255, 255), annot_thickness, cv2.LINE_AA)
                 else:
                     lane_pts_disp = np.array([
                         (int(disp_w * 0.46), int(disp_h * 0.95)),
