@@ -197,6 +197,14 @@ else:
     num_classes = 8
     unet_model = Unet(num_classes=8, encoder_name=backbone).to(device)
     print(f"[WARNING] Chua co file trong so {unet_weights_path} trong thu muc 'weights'.")
+    print(f"[DEBUG] Thu muc lam viec hien tai (Cwd): {os.getcwd()}")
+    if os.path.exists("weights"):
+        print("[DEBUG] Liet ke tat ca cac file trong thu muc 'weights':")
+        for root, dirs, files in os.walk("weights"):
+            for f in files:
+                print(f"  - {os.path.join(root, f)}")
+    else:
+        print("[DEBUG] Thu muc 'weights' khong ton tai o thu muc lam viec hien tai!")
     print("[WARNING] He thong se tu dong kich hoat Che do Mo phong Thong minh (Simulated Demo Mode) de minh hoa BTL.")
     use_fallback_detection = True
 
