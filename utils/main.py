@@ -54,26 +54,32 @@ except Exception:
     except Exception:
         pass
 
-def draw_panel_title(img, title_text):
+def draw_panel_title(img, title_text, position="top"):
     h, w = img.shape[:2]
     font = cv2.FONT_HERSHEY_SIMPLEX
     font_scale = max(0.35, 0.4 * (h / 360.0))
     thickness = max(1, int(1 * (h / 360.0)))
     (text_w, text_h), _ = cv2.getTextSize(title_text, font, font_scale, thickness)
     
-    # Top center position coordinates
+    # Coordinates of position
     x1 = (w - text_w) // 2 - int(10 * (w / 640.0))
-    y1 = int(10 * (h / 360.0))
     x2 = (w + text_w) // 2 + int(10 * (w / 640.0))
-    y2 = y1 + text_h + int(10 * (h / 360.0))
     
+    if position == "bottom":
+        y2 = h - int(10 * (h / 360.0))
+        y1 = y2 - text_h - int(10 * (h / 360.0))
+        text_y = y2 - int(5 * (h / 360.0))
+    else:
+        y1 = int(10 * (h / 360.0))
+        y2 = y1 + text_h + int(10 * (h / 360.0))
+        text_y = y2 - int(5 * (h / 360.0))
+        
     # Draw white background panel and grey border
     cv2.rectangle(img, (x1, y1), (x2, y2), (255, 255, 255), -1)
     cv2.rectangle(img, (x1, y1), (x2, y2), (180, 180, 180), 1)
     
     # Draw title text in black
     text_x = (w - text_w) // 2
-    text_y = y2 - int(5 * (h / 360.0))
     cv2.putText(img, title_text, (text_x, text_y), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
 
 from MidasDepthEstimation.midasDepthEstimator import midasDepthEstimator as MidasDepthEstimator
@@ -1210,7 +1216,7 @@ try:
             draw_panel_title(panel_input, title_text)
             draw_panel_title(panel_seg, "Semantic Segmentation (U-Net)")
             draw_panel_title(panel_depth, "Depth Estimation (MiDaS)")
-            draw_panel_title(panel_fused, "Fused Scene Understanding Overlay")
+            draw_panel_title(panel_fused, "Fused Scene Understanding Overlay", position="bottom")
             
             dashboard = np.hstack((panel_input, panel_seg, panel_depth, panel_fused))
 
