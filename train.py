@@ -12,6 +12,7 @@ import torch.optim as optim
 
 from utils import CityscapesTrainDataset, CityscapesLabelEncoder, CityscapesDataset, \
                   Trainer, Meter, UnetResNet, load_train_config
+# from utils import KittiLaneLabelEncoder, KittiTrainDataset, KittiLaneDataset, FPN
 
 warnings.filterwarnings("ignore")
 seed = 69
@@ -33,6 +34,10 @@ if __name__ == "__main__":
         train_dataset = CityscapesTrainDataset(**PATHS["CITYSCAPES"])
         trainset, valset = train_dataset.get_paths()
         image_dataset = CityscapesDataset(**DATASET)
+    # elif TARGET == "kitti":
+    #     train_dataset = KittiTrainDataset(**PATHS["KITTI"])
+    #     trainset, valset = train_dataset.get_paths()
+    #     image_dataset = KittiLaneDataset(**DATASET)
     else:
         raise ValueError(f"Unsupported dataset target: {TARGET}")
 
@@ -43,6 +48,15 @@ if __name__ == "__main__":
                            num_filters=32, 
                            Dropout=0.3, 
                            res_blocks_dec=MODEL["unet_res_blocks_decoder"])
+    # elif MODEL["mode"] == "FPN":
+    #     model = FPN(encoder_name=MODEL["backbone"],
+    #                 decoder_pyramid_channels=256,
+    #                 decoder_segmentation_channels=128,
+    #                 classes=MODEL["num_classes"],
+    #                 dropout=0.3,
+    #                 activation='sigmoid',
+    #                 final_upsampling=4,
+    #                 decoder_merge_policy='add')
     else:
         raise ValueError('Model type is not correct: `{}`.'.format(MODEL["mode"]))
 
