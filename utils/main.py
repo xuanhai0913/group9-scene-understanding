@@ -778,11 +778,12 @@ try:
                     if active_tracks:
                         vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
                         if vehicles_near:
-                            # Lọc các xe ở khoảng cách dẫn đường hợp lý từ 4m đến 25m
+                            # Lọc các xe ở khoảng cách dẫn đường hợp lý từ 4m đến 25m và đã được track ổn định (ít nhất 8 khung hình)
+                            # Điều này giúp loại bỏ hoàn toàn các xe đi ngược chiều chỉ xẹt qua nhanh trong vài khung hình
                             valid_v = []
                             for t in vehicles_near:
                                 d = 1000.0 / (t['depth_history'][-1] + 1e-5)
-                                if 4.0 <= d <= 25.0:
+                                if 4.0 <= d <= 25.0 and len(t['depth_history']) >= 8:
                                     valid_v.append((t, d))
                             if valid_v:
                                 closest_v, d_v = min(valid_v, key=lambda x: x[1])
