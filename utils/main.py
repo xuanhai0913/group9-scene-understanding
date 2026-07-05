@@ -355,7 +355,16 @@ class InferenceThread(threading.Thread):
                         if seg_output.shape[1] == 1:
                             seg_mask = (seg_output > self.base_threshold).long().squeeze(0).squeeze(0).cpu().numpy()
                         else:
+                            probs = torch.softmax(seg_output, dim=1).squeeze(0)
                             seg_mask = torch.argmax(seg_output, dim=1).squeeze(0).cpu().numpy()
+                            
+                            # Lọc bỏ các pixel Human (6) và Vehicle (7) có độ tin cậy thấp để giảm nhiễu nhận diện nhầm trên vỉa hè/nhà cửa
+                            probs_np = probs.cpu().numpy()
+                            
+                            # Ngưỡng tin cậy cho Human: 0.65 (yêu cầu mô hình chắc chắn mới giữ lại)
+                            seg_mask[(seg_mask == 6) & (probs_np[6] < 0.65)] = 0
+                            # Ngưỡng tin cậy cho Vehicle: 0.55
+                            seg_mask[(seg_mask == 7) & (probs_np[7] < 0.55)] = 0
 
                     seg_mask_unet = cv2.resize(seg_mask, (orig_w, orig_h), interpolation=cv2.INTER_NEAREST)
                     seg_mask_full = np.zeros((orig_h, orig_w), dtype=np.uint8)
