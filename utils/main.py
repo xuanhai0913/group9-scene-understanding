@@ -831,11 +831,11 @@ try:
             # Cập nhật các điểm ranh giới làn dựa trên chế độ làn được chọn (chạy một lần mỗi khung hình)
             if not is_full_road:
                 if use_center_ego:
-                    # Cấu hình làn Ego nằm chính giữa camera (cho xe đi giữa làn - thu hẹp để tránh lấn sang làn bên cạnh)
-                    x1_l, y1_l = int(w * 0.30), int(h * 0.95)
-                    x2_l, y2_l = int(w * 0.46), int(h * 0.55)
-                    x1_r, y1_r = int(w * 0.70), int(h * 0.95)
-                    x2_r, y2_r = int(w * 0.54), int(h * 0.55)
+                    # Cấu hình làn Ego nằm chính giữa camera (cho xe đi giữa làn - dịch sang trái một chút để khớp thực tế xe chạy)
+                    x1_l, y1_l = int(w * 0.22), int(h * 0.95)
+                    x2_l, y2_l = int(w * 0.38), int(h * 0.55)
+                    x1_r, y1_r = int(w * 0.62), int(h * 0.95)
+                    x2_r, y2_r = int(w * 0.46), int(h * 0.55)
                 elif pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top and not use_left_ego:
                     x1_l, y1_l = pt_left_bottom
                     x2_l, y2_l = pt_left_top
