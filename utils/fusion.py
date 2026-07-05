@@ -221,17 +221,16 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
             contours, _ = cv2.findContours(human_mask_cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             for contour in contours:
                 area = cv2.contourArea(contour)
-                if area > 300: # Đặt ở mức 300 để lọc bỏ các mảng nhiễu vỉa hè bị nhận nhầm thành người
+                if area > 800: # Nâng ngưỡng diện tích từ 300 lên 800 để lọc bỏ triệt để các đốm nhiễu li ti
                     x, y, w, h = cv2.boundingRect(contour)
                     # Bỏ qua người đi bộ phát hiện nhầm trên tán cây/bầu trời
                     if y + h < sky_cutoff:
                         continue
                     
-                    # Bộ lọc tỷ lệ khung hình (Aspect Ratio Filter): Con người đi bộ/đứng thẳng phải có chiều cao > chiều rộng
-                    # Các mảng nhiễu vỉa hè, hàng rào, dải phân cách thường nằm ngang và dẹt (w > h)
+                    # Bộ lọc hình học nghiêm ngặt cho Người đi bộ (phải cao, thon và đủ chiều cao đứng thẳng)
                     aspect_ratio = w / float(h)
-                    if aspect_ratio > 0.85:
-                        continue
+                    if aspect_ratio > 0.75 or h < 45:
+                        continue # Loại bỏ hàng rào, vỉa hè, và các đốm nhiễu lùn/dẹt ngang
                         
                     overlap = False
                     for det in fused_detections:
