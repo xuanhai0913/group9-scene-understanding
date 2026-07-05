@@ -750,6 +750,54 @@ try:
             
             h, w = seg_mask_full.shape[:2]
             
+            # Xác định kiểu làn Ego một lần cho mỗi khung hình (tránh lỗi NameError khi active_tracks rỗng)
+            use_left_ego = args.left_ego
+            use_center_ego = args.center_ego
+            if not use_left_ego and not use_center_ego:
+                if not is_full_road:
+                    use_center_ego = True
+                if active_tracks:
+                    vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
+                    if vehicles_near:
+                        closest_v = min(vehicles_near, key=lambda t: 1000.0 / (t['depth_history'][-1] + 1e-5))
+                        d_v = 1000.0 / (closest_v['depth_history'][-1] + 1e-5)
+                        if d_v < 15.0:
+                            vx1, _, vx2, _ = closest_v['box']
+                            vx_center = (vx1 + vx2) // 2
+                            if vx_center < w * 0.45:
+                                use_left_ego = True
+                                use_center_ego = False
+            
+            # Cập nhật các điểm ranh giới làn dựa trên chế độ làn được chọn (chạy một lần mỗi khung hình)
+            if not is_full_road:
+                if use_center_ego:
+                    # Cấu hình làn Ego nằm chính giữa camera (cho xe đi giữa làn)
+                    x1_l, y1_l = int(w * 0.15), int(h * 0.95)
+                    x2_l, y2_l = int(w * 0.42), int(h * 0.55)
+                    x1_r, y1_r = int(w * 0.85), int(h * 0.95)
+                    x2_r, y2_r = int(w * 0.58), int(h * 0.55)
+                elif pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top and not use_left_ego:
+                    x1_l, y1_l = pt_left_bottom
+                    x2_l, y2_l = pt_left_top
+                    x1_r, y1_r = pt_right_bottom
+                    x2_r, y2_r = pt_right_top
+                elif use_left_ego:
+                    # Cấu hình làn Ego nằm bên trái dải phân cách cứng (làn xe máy của ta)
+                    x1_l, y1_l = int(w * 0.02), int(h * 0.95)
+                    x2_l, y2_l = int(w * 0.15), int(h * 0.55)
+                    x1_r, y1_r = int(w * 0.46), int(h * 0.95)
+                    x2_r, y2_r = int(w * 0.48), int(h * 0.55)
+                else:
+                    x1_l, y1_l = int(w * 0.46), int(h * 0.95)
+                    x2_l, y2_l = int(w * 0.48), int(h * 0.55)
+                    x1_r, y1_r = int(w * 0.98), int(h * 0.95)
+                    x2_r, y2_r = int(w * 0.65), int(h * 0.55)
+                    
+                pt_left_bottom = (x1_l, y1_l)
+                pt_left_top = (x2_l, y2_l)
+                pt_right_bottom = (x1_r, y1_r)
+                pt_right_top = (x2_r, y2_r)
+
             if active_tracks:
                 for tid, track in active_tracks.items():
                     xmin_orig, ymin_orig, xmax_orig, ymax_orig = track['box']
@@ -765,57 +813,6 @@ try:
                         ], dtype=np.int32)
                         is_in_lane = (cv2.pointPolygonTest(ego_poly_orig, (x_center_orig, y_center_orig), False) >= 0)
                     else:
-                        use_left_ego = args.left_ego
-                        use_center_ego = args.center_ego
-                        
-                        # Tự động nhận diện kiểu làn Ego (Left, Center, hoặc Right) nếu người dùng không chỉ định cứng
-                        if not use_left_ego and not use_center_ego:
-                            # 1. Nếu là camera di động (Dashcam): mặc định căn giữa làn (Center Ego)
-                            if not is_full_road:
-                                use_center_ego = True
-                            
-                            # 2. Nếu phát hiện phương tiện đi bên trái rất gần (làn xe máy): tự động chuyển sang làn trái (Left Ego)
-                            if active_tracks:
-                                vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
-                                if vehicles_near:
-                                    closest_v = min(vehicles_near, key=lambda t: 1000.0 / (t['depth_history'][-1] + 1e-5))
-                                    d_v = 1000.0 / (closest_v['depth_history'][-1] + 1e-5)
-                                    if d_v < 15.0:
-                                        vx1, _, vx2, _ = closest_v['box']
-                                        vx_center = (vx1 + vx2) // 2
-                                        if vx_center < w * 0.45:
-                                            use_left_ego = True
-                                            use_center_ego = False
-                                            
-                        if use_center_ego:
-                            # Cấu hình làn Ego nằm chính giữa camera (cho xe đi giữa làn)
-                            x1_l, y1_l = int(w * 0.15), int(h * 0.95)
-                            x2_l, y2_l = int(w * 0.42), int(h * 0.55)
-                            x1_r, y1_r = int(w * 0.85), int(h * 0.95)
-                            x2_r, y2_r = int(w * 0.58), int(h * 0.55)
-                        elif pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top and not use_left_ego:
-                            x1_l, y1_l = pt_left_bottom
-                            x2_l, y2_l = pt_left_top
-                            x1_r, y1_r = pt_right_bottom
-                            x2_r, y2_r = pt_right_top
-                        elif use_left_ego:
-                            # Cấu hình làn Ego nằm bên trái dải phân cách cứng (làn xe máy của ta)
-                            x1_l, y1_l = int(w * 0.02), int(h * 0.95)
-                            x2_l, y2_l = int(w * 0.15), int(h * 0.55)
-                            x1_r, y1_r = int(w * 0.46), int(h * 0.95)
-                            x2_r, y2_r = int(w * 0.48), int(h * 0.55)
-                        else:
-                            x1_l, y1_l = int(w * 0.46), int(h * 0.95)
-                            x2_l, y2_l = int(w * 0.48), int(h * 0.55)
-                            x1_r, y1_r = int(w * 0.98), int(h * 0.95)
-                            x2_r, y2_r = int(w * 0.65), int(h * 0.55)
-                            
-                        # Cập nhật ngược lại các điểm lane để phần vẽ đè sử dụng đúng các điểm đã chọn
-                        pt_left_bottom = (x1_l, y1_l)
-                        pt_left_top = (x2_l, y2_l)
-                        pt_right_bottom = (x1_r, y1_r)
-                        pt_right_top = (x2_r, y2_r)
-                            
                         if abs(y1_l - y2_l) > 0:
                             x_div_left = x2_l + (y_center_orig - y2_l) * (x1_l - x2_l) / (y1_l - y2_l)
                         else:
