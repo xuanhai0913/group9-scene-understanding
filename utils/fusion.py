@@ -179,11 +179,16 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
     if is_multiclass:
         # Khôi phục Xe (Vehicle)
         vehicle_mask = (seg_mask_full == vehicle_class).astype(np.uint8)
-        contours, _ = cv2.findContours(vehicle_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Sử dụng phép toán hình thái học (morphological operations) để nối các vùng phân mảnh và lọc nhiễu
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        vehicle_mask_cleaned = cv2.morphologyEx(vehicle_mask, cv2.MORPH_CLOSE, kernel)
+        vehicle_mask_cleaned = cv2.morphologyEx(vehicle_mask_cleaned, cv2.MORPH_OPEN, kernel)
+        
+        contours, _ = cv2.findContours(vehicle_mask_cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         sky_cutoff = int(depth_map.shape[0] * 0.48)
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area > 1000:
+            if area > 250: # Hạ ngưỡng từ 1000 xuống 250 để nhận diện ô tô/xe máy nhỏ hoặc ở xa tốt hơn
                 x, y, w, h = cv2.boundingRect(contour)
                 # Bỏ qua các khung bao nằm trên đường chân trời (trong tán cây, bầu trời)
                 if y + h < sky_cutoff:
@@ -209,10 +214,14 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
         # Khôi phục Người (Human) - Chỉ khi mô hình U-Net hỗ trợ (num_classes != 4)
         if num_classes != 4:
             human_mask = (seg_mask_full == human_class).astype(np.uint8)
-            contours, _ = cv2.findContours(human_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # Áp dụng morphological operations cho mặt nạ người đi bộ
+            human_mask_cleaned = cv2.morphologyEx(human_mask, cv2.MORPH_CLOSE, kernel)
+            human_mask_cleaned = cv2.morphologyEx(human_mask_cleaned, cv2.MORPH_OPEN, kernel)
+            
+            contours, _ = cv2.findContours(human_mask_cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             for contour in contours:
                 area = cv2.contourArea(contour)
-                if area > 500:
+                if area > 150: # Hạ ngưỡng từ 500 xuống 150 để nhận diện người đi bộ tốt hơn
                     x, y, w, h = cv2.boundingRect(contour)
                     # Bỏ qua người đi bộ phát hiện nhầm trên tán cây/bầu trời
                     if y + h < sky_cutoff:

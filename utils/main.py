@@ -379,6 +379,16 @@ class InferenceThread(threading.Thread):
                     seg_mask_full[0:sky_cutoff, :][seg_mask_full[0:sky_cutoff, :] == 7] = 0
                     seg_mask_full[0:sky_cutoff, :][seg_mask_full[0:sky_cutoff, :] == 6] = 0
                     
+                    # Áp dụng morphological operations cho Vehicle (7) và Human (6) ngay trên seg_mask_full để hiển thị mượt mà hơn
+                    kernel_clean = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+                    for c_idx in [6, 7]:
+                        c_mask = (seg_mask_full == c_idx).astype(np.uint8)
+                        if np.any(c_mask):
+                            c_mask_cleaned = cv2.morphologyEx(c_mask, cv2.MORPH_CLOSE, kernel_clean)
+                            c_mask_cleaned = cv2.morphologyEx(c_mask_cleaned, cv2.MORPH_OPEN, kernel_clean)
+                            seg_mask_full[seg_mask_full == c_idx] = 0
+                            seg_mask_full[c_mask_cleaned == 1] = c_idx
+                    
                     detected_obstacles = []
 
                 # Run Fusion
