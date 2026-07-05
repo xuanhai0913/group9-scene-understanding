@@ -145,6 +145,8 @@ if not os.path.exists(unet_weights_path):
     alternatives = [
         "weights/UNET_resnet50_cityscapes/best_model.pth",
         "./weights/UNET_resnet50_cityscapes/best_model.pth",
+        "weights/best_model.pth",
+        "./weights/best_model.pth",
         "weights/UNET_resnet50_road/best_model.pth"
     ]
     for alt in alternatives:
