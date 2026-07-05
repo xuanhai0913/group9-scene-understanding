@@ -25,9 +25,9 @@ Chạy script đánh giá mô hình U-Net trên 585 ảnh validation của tập
 python eval.py --config_path config/train_config_cityscapes.yaml
 ```
 
-### Kết quả đo đạc thực tế sau tối ưu hóa (Epoch 50):
-*   **Chỉ số IoU tổng thể (Mean IoU):** **47.94%** (`0.479395`)
-*   **Chỉ số Dice tổng thể (Mean Dice):** **64.36%** (`0.643593`)
+### Kết quả đo đạc thực tế sau tối ưu hóa (Epoch 50 - 8 Lớp):
+*   **Chỉ số IoU tổng thể (Mean IoU):** **36.45%** (`0.364516`)
+*   **Chỉ số Dice tổng thể (Mean Dice):** **50.19%** (`0.501861`)
 
 ---
 
@@ -35,9 +35,9 @@ python eval.py --config_path config/train_config_cityscapes.yaml
 
 | Lớp đối tượng | Accuracy | Precision | Recall | F1-Score (Dice) | Loại nhãn |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| 🛣️ **Đường (flat/road)** | 80.50% | 79.79% | 67.54% | **73.15%** | **Lớp chính (Yêu cầu)** |
-| ☁️ **Bầu trời (sky)** | 98.13% | 85.44% | 67.86% | **75.64%** | **Lớp chính (Yêu cầu)** |
-| 🚗 **Xe cộ (vehicle/car)** | 95.37% | 67.04% | 76.12% | **71.29%** | **Lớp chính (Yêu cầu)** |
+| 🛣️ **Đường (flat/road)** | 80.35% | 77.91% | 69.85% | **73.66%** | **Lớp chính (Yêu cầu)** |
+| ☁️ **Bầu trời (sky)** | 98.10% | 84.05% | 68.63% | **75.56%** | **Lớp chính (Yêu cầu)** |
+| 🚗 **Xe cộ (vehicle/car)** | 94.72% | 61.55% | 80.06% | **69.60%** | **Lớp chính (Yêu cầu)** |
 | 🌳 Cây cối (nature) | 95.17% | 92.06% | 78.46% | 84.72% | Lớp phụ trợ |
 | 🏢 Công trình (construction) | 76.30% | 46.82% | 86.12% | 60.66% | Lớp phụ trợ |
 | 🚶 Con người (human) | 99.33% | 52.86% | 38.93% | 44.84% | Lớp phụ trợ |
@@ -45,7 +45,7 @@ python eval.py --config_path config/train_config_cityscapes.yaml
 | 🚧 Cột/Biển báo (object) | 98.32% | 75.53% | 3.73% | 7.10% | Lớp phụ trợ |
 
 > [!NOTE]
-> Nhờ áp dụng kỹ thuật **Hậu xử lý hình thái học phân tách lớp (Morphology Split)** và **Tối ưu hóa ngưỡng quyết định (Threshold Tuning)** động, cả 3 lớp chính đều đạt hiệu năng vượt trội. Lớp Bầu trời đạt F1-Score **75.64%** (tăng +15.31%) và Đường đi đạt **73.15%** (tăng +8.99%), trong khi Xe cộ vẫn bảo toàn ở mức cao nhất **71.29%**.
+> Nhờ áp dụng kỹ thuật **Hậu xử lý hình thái học phân tách lớp (Morphology Split)** và **Tối ưu hóa ngưỡng quyết định (Threshold Tuning)** động, cả 3 lớp chính đều đạt hiệu năng vượt trội. Lớp Bầu trời đạt F1-Score **75.56%**, Đường đi đạt **73.66%**, và Xe cộ đạt **69.60%**.
 
 ---
 
