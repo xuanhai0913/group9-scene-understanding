@@ -1021,8 +1021,8 @@ try:
                         
                     is_cutting_in = any(x[0] == tid for x in cutting_in_tracks)
                     
-                    # Calculate dynamic thickness scaled by resolution, ensuring a minimum of 2
-                    box_thickness = max(2, int(2.5 * (disp_h / 360.0)))
+                    # Increased thickness and scale for better visibility on the HUD dashboard
+                    box_thickness = 3
                     if is_danger:
                         color = (0, 0, 255) # Red
                         thickness = box_thickness + 1
@@ -1048,8 +1048,8 @@ try:
                         suffix = ""
                         
                     label_text = f"{track['type'].upper()}{suffix} #{tid}: {dist:.1f} rel"
-                    font_scale = max(0.35, 0.5 * (disp_h / 360.0))
-                    font_thickness = max(1, int(1.5 * (disp_h / 360.0)))
+                    font_scale = 0.45
+                    font_thickness = 1
                     (w_label, h_label), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
                     
                     y_label = ymin - 4
@@ -1057,7 +1057,7 @@ try:
                         y_label = ymin + h_label + 8
                         
                     cv2.rectangle(output_frame, (xmin, y_label - h_label - 4), (xmin + w_label + 10, y_label + 4), (0, 0, 0), -1)
-                    label_border_thickness = max(1, int(thickness - 1))
+                    label_border_thickness = 1
                     if is_lost:
                         draw_dashed_rectangle(output_frame, (xmin, y_label - h_label - 4), (xmin + w_label + 10, y_label + 4), color, label_border_thickness)
                     else:
