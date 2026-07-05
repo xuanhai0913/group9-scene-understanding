@@ -18,20 +18,20 @@ classes = ['Nền (Background)', 'Đối tượng (Object)']
 
 # 1. Lớp Đường (flat)
 cm_road = np.array([
-    [0.9664, 0.0336],  # Actual Background -> Predicted Neg, Pos
-    [0.0218, 0.9782]   # Actual Road -> Predicted Neg, Pos
+    [0.8716, 0.1284],  # Actual Background -> Predicted Neg, Pos
+    [0.3015, 0.6985]   # Actual Road -> Predicted Neg, Pos
 ])
 
 # 2. Lớp Bầu trời (sky)
 cm_sky = np.array([
-    [0.9966, 0.0034],  # Actual Background -> Predicted Neg, Pos
-    [0.0411, 0.9589]   # Actual Sky -> Predicted Neg, Pos
+    [0.9942, 0.0058],  # Actual Background -> Predicted Neg, Pos
+    [0.3137, 0.6863]   # Actual Sky -> Predicted Neg, Pos
 ])
 
 # 3. Lớp Xe cộ (vehicle)
 cm_vehicle = np.array([
-    [0.9945, 0.0055],  # Actual Background -> Predicted Neg, Pos
-    [0.0763, 0.9237]   # Actual Vehicle -> Predicted Neg, Pos
+    [0.9591, 0.0409],  # Actual Background -> Predicted Neg, Pos
+    [0.1994, 0.8006]   # Actual Vehicle -> Predicted Neg, Pos
 ])
 
 cms = [cm_road, cm_sky, cm_vehicle]
