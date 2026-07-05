@@ -587,6 +587,13 @@ try:
             view_depth = cv2.resize(depth_colored_full, (disp_w, disp_h))
             
             output_frame = cv2.addWeighted(view_main, 0.7, view_seg, 0.3, 0)
+            
+            # Make vehicle (class 7) and human (class 6) segmentations pop out much more by blending them at 0.55 opacity on the output frame
+            vehicle_human_mask = (seg_mask_full == 7) | (seg_mask_full == 6)
+            vehicle_human_mask_resized = cv2.resize(vehicle_human_mask.astype(np.uint8), (disp_w, disp_h), interpolation=cv2.INTER_NEAREST).astype(bool)
+            overlay_strong = cv2.addWeighted(view_main, 0.45, view_seg, 0.55, 0)
+            output_frame[vehicle_human_mask_resized] = overlay_strong[vehicle_human_mask_resized]
+            
             y_top = int(disp_h * 0.45)
             y_bottom = disp_h
             x_top = int(disp_w * 0.50)
