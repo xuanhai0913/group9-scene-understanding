@@ -766,18 +766,25 @@ try:
                         use_left_ego = args.left_ego
                         use_center_ego = args.center_ego
                         
-                        # Tự động nhận diện hướng làn Ego dựa trên phương tiện gần camera nhất hoặc tham số --left_ego
-                        if not use_left_ego and not use_center_ego and active_tracks:
-                            vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
-                            if vehicles_near:
-                                closest_v = min(vehicles_near, key=lambda t: 1000.0 / (t['depth_history'][-1] + 1e-5))
-                                d_v = 1000.0 / (closest_v['depth_history'][-1] + 1e-5)
-                                if d_v < 15.0:
-                                    vx1, _, vx2, _ = closest_v['box']
-                                    vx_center = (vx1 + vx2) // 2
-                                    if vx_center < w * 0.45:
-                                        use_left_ego = True
-                                        
+                        # Tự động nhận diện kiểu làn Ego (Left, Center, hoặc Right) nếu người dùng không chỉ định cứng
+                        if not use_left_ego and not use_center_ego:
+                            # 1. Nếu là camera di động (Dashcam): mặc định căn giữa làn (Center Ego)
+                            if not is_full_road:
+                                use_center_ego = True
+                            
+                            # 2. Nếu phát hiện phương tiện đi bên trái rất gần (làn xe máy): tự động chuyển sang làn trái (Left Ego)
+                            if active_tracks:
+                                vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
+                                if vehicles_near:
+                                    closest_v = min(vehicles_near, key=lambda t: 1000.0 / (t['depth_history'][-1] + 1e-5))
+                                    d_v = 1000.0 / (closest_v['depth_history'][-1] + 1e-5)
+                                    if d_v < 15.0:
+                                        vx1, _, vx2, _ = closest_v['box']
+                                        vx_center = (vx1 + vx2) // 2
+                                        if vx_center < w * 0.45:
+                                            use_left_ego = True
+                                            use_center_ego = False
+                                            
                         if use_center_ego:
                             # Cấu hình làn Ego nằm chính giữa camera (cho xe đi giữa làn)
                             x1_l, y1_l = int(w * 0.15), int(h * 0.95)
