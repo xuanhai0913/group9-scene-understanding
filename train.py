@@ -11,8 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from utils import CityscapesTrainDataset, CityscapesLabelEncoder, CityscapesDataset, \
-                  KittiLaneLabelEncoder, KittiTrainDataset, KittiLaneDataset, \
-                  Trainer, Meter, UnetResNet, FPN, load_train_config
+                  Trainer, Meter, UnetResNet, load_train_config
 
 warnings.filterwarnings("ignore")
 seed = 69
@@ -30,15 +29,12 @@ globals().update(config)
 
 if __name__ == "__main__":
 
-    if TARGET == "kitti":
-        train_dataset = KittiTrainDataset(**PATHS["KITTI"])
-        trainset, valset = train_dataset.get_paths()
-        image_dataset = KittiLaneDataset(**DATASET)
-    
-    elif TARGET == "cityscapes":
+    if TARGET == "cityscapes":
         train_dataset = CityscapesTrainDataset(**PATHS["CITYSCAPES"])
         trainset, valset = train_dataset.get_paths()
         image_dataset = CityscapesDataset(**DATASET)
+    else:
+        raise ValueError(f"Unsupported dataset target: {TARGET}")
 
     if MODEL["mode"] == "UNET":
         model = UnetResNet(encoder_name=MODEL["backbone"], 
@@ -47,27 +43,11 @@ if __name__ == "__main__":
                            num_filters=32, 
                            Dropout=0.3, 
                            res_blocks_dec=MODEL["unet_res_blocks_decoder"])
-
-    elif MODEL["mode"] == "FPN":
-        model = FPN(encoder_name=MODEL["backbone"],
-                    decoder_pyramid_channels=256,
-                    decoder_segmentation_channels=128,
-                    classes=MODEL["num_classes"],
-                    dropout=0.3,
-                    activation='sigmoid',
-                    final_upsampling=4,
-                    decoder_merge_policy='add')
     else:
         raise ValueError('Model type is not correct: `{}`.'.format(MODEL["mode"]))
 
     model_trainer = Trainer(model=model, image_dataset=image_dataset, optimizer=optim.Adam, **TRAINING)
-    checkpoint_path = TRAINING.get("load_checkpoint", "")
-    if checkpoint_path and os.path.exists(checkpoint_path):
-        print(f"[INFO] Loaded checkpoint and resumed training from: {checkpoint_path}")
-        state = torch.load(checkpoint_path, map_location=model_trainer.device, weights_only=False)
-        model.load_state_dict(state["state_dict"])
-        model_trainer.start_epoch = state["epoch"] + 1
-        model_trainer.best_metric = state["best_metric"]
+    # Note: Trainer automatically handles loading the checkpoint (including shape filtering, optimizer state, start_epoch, and best_metric) during initialization if load_checkpoint is set and exists.
     
     model_trainer.start(trainset, valset)
 

@@ -179,11 +179,20 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
     if is_multiclass:
         # Khôi phục Xe (Vehicle)
         vehicle_mask = (seg_mask_full == vehicle_class).astype(np.uint8)
-        contours, _ = cv2.findContours(vehicle_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Sử dụng phép toán hình thái học (morphological operations) để nối các vùng phân mảnh và lọc nhiễu
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        vehicle_mask_cleaned = cv2.morphologyEx(vehicle_mask, cv2.MORPH_CLOSE, kernel)
+        vehicle_mask_cleaned = cv2.morphologyEx(vehicle_mask_cleaned, cv2.MORPH_OPEN, kernel)
+        
+        contours, _ = cv2.findContours(vehicle_mask_cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        sky_cutoff = int(depth_map.shape[0] * 0.48)
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area > 1000:
+            if area > 350: # Đặt ở mức 350 để lọc nhiễu tốt hơn trong khi vẫn bắt được ô tô/xe máy ở xa
                 x, y, w, h = cv2.boundingRect(contour)
+                # Bỏ qua các khung bao nằm trên đường chân trời (trong tán cây, bầu trời)
+                if y + h < sky_cutoff:
+                    continue
                 overlap = False
                 for det in fused_detections:
                     if det['type'] == 'vehicle':
@@ -205,11 +214,24 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
         # Khôi phục Người (Human) - Chỉ khi mô hình U-Net hỗ trợ (num_classes != 4)
         if num_classes != 4:
             human_mask = (seg_mask_full == human_class).astype(np.uint8)
-            contours, _ = cv2.findContours(human_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # Áp dụng morphological operations cho mặt nạ người đi bộ
+            human_mask_cleaned = cv2.morphologyEx(human_mask, cv2.MORPH_CLOSE, kernel)
+            human_mask_cleaned = cv2.morphologyEx(human_mask_cleaned, cv2.MORPH_OPEN, kernel)
+            
+            contours, _ = cv2.findContours(human_mask_cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             for contour in contours:
                 area = cv2.contourArea(contour)
-                if area > 500:
+                if area > 800: # Nâng ngưỡng diện tích từ 300 lên 800 để lọc bỏ triệt để các đốm nhiễu li ti
                     x, y, w, h = cv2.boundingRect(contour)
+                    # Bỏ qua người đi bộ phát hiện nhầm trên tán cây/bầu trời
+                    if y + h < sky_cutoff:
+                        continue
+                    
+                    # Bộ lọc hình học nghiêm ngặt cho Người đi bộ (phải cao, thon và đủ chiều cao đứng thẳng)
+                    aspect_ratio = w / float(h)
+                    if aspect_ratio > 0.75 or h < 45:
+                        continue # Loại bỏ hàng rào, vỉa hè, và các đốm nhiễu lùn/dẹt ngang
+                        
                     overlap = False
                     for det in fused_detections:
                         if det['type'] == 'human':
@@ -222,6 +244,7 @@ def fuse_detections_and_segmentation(detections, seg_mask_full, depth_map, use_f
                         if box_depth.size > 0:
                             max_d = np.percentile(box_depth, 95)
                             fused_detections.append({
+                                
                                 'box': (x, y, x + w, y + h),
                                 'depth': max_d,
                                 'type': 'human',

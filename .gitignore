@@ -16,7 +16,9 @@ data/cityscapes/
 data/eval_images/
 data/test_images/
 data/demo_results/
-data/sample_videos/
+data/sample_videos/*
+!data/sample_videos/vecteezy_motorbikes-and-cars-traffic-on-hanoi-highway-vietnam_30520411 (1).mov
+!data/sample_videos/data_sample_videos_vecteezy_a-traffic-jam-at-the-busy-town-in-ho-chi-minh-wide-shot_44238659.mov
 outputs/
 
 # Large model weights/binaries

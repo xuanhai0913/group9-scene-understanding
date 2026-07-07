@@ -14,7 +14,7 @@ Trong các hệ thống tự hành và hỗ trợ lái xe nâng cao (ADAS), vi�
 
 ### 2.1. Yêu cầu Phân đoạn ngữ cảnh (Semantic Segmentation)
 *   **Mục tiêu:** Hệ thống phải phân tách được chính xác khu vực mặt đường (Road) và phân chia các làn đường trên video thời gian thực.
-*   **Yêu cầu kỹ thuật:** Sử dụng dữ liệu thực tế từ tập dữ liệu **KITTI** và mô hình phân đoạn mức độ pixel để xác định ranh giới đường đi.
+*   **Yêu cầu kỹ thuật:** Sử dụng dữ liệu thực tế từ tập dữ liệu **Cityscapes** và mô hình phân đoạn mức độ pixel để xác định ranh giới đường đi. Nhận diện 8 lớp và tập trung chính vào 3 lớp: Đường (road/flat), Bầu trời (sky) và Xe cộ (vehicle/car).
 
 ### 2.2. Yêu cầu Ước lượng độ sâu (Depth Estimation)
 *   **Mục tiêu:** Tính toán bản đồ độ sâu của khung cảnh phía trước từ một camera đơn sắc (Monocular Camera) để biết khoảng cách xa/gần của các chướng ngại vật.

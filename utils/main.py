@@ -54,18 +54,49 @@ except Exception:
     except Exception:
         pass
 
+def draw_panel_title(img, title_text, position="top"):
+    h, w = img.shape[:2]
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = max(0.35, 0.4 * (h / 360.0))
+    thickness = max(1, int(1 * (h / 360.0)))
+    (text_w, text_h), _ = cv2.getTextSize(title_text, font, font_scale, thickness)
+    
+    # Coordinates of position
+    x1 = (w - text_w) // 2 - int(10 * (w / 640.0))
+    x2 = (w + text_w) // 2 + int(10 * (w / 640.0))
+    
+    if position == "bottom":
+        y2 = h - int(10 * (h / 360.0))
+        y1 = y2 - text_h - int(10 * (h / 360.0))
+        text_y = y2 - int(5 * (h / 360.0))
+    else:
+        y1 = int(10 * (h / 360.0))
+        y2 = y1 + text_h + int(10 * (h / 360.0))
+        text_y = y2 - int(5 * (h / 360.0))
+        
+    # Draw white background panel and grey border
+    cv2.rectangle(img, (x1, y1), (x2, y2), (255, 255, 255), -1)
+    cv2.rectangle(img, (x1, y1), (x2, y2), (180, 180, 180), 1)
+    
+    # Draw title text in black
+    text_x = (w - text_w) // 2
+    cv2.putText(img, title_text, (text_x, text_y), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
+
 from MidasDepthEstimation.midasDepthEstimator import midasDepthEstimator as MidasDepthEstimator
 
 # 3. DOC VIDEO GIAO THONG DAU VAO (OPENCV) - Dua parser len dau de cau hinh mo hinh
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--video_path', type=str, default="", help="Duong dan den file video")
-parser.add_argument('--high_acc', action='store_true', help="Su dung mo hinh nhan dien SSD300 VGG16 do chinh xac cao")
 parser.add_argument('--full_road', action='store_true', help="Giam sat va canh bao va cham tren toan bo long duong (khong chia lan)")
 parser.add_argument('--skip_frames', type=int, default=1, help="Chi xu ly moi khung hinh thu N de tang toc tren CPU (skip_frames >= 1)")
 parser.add_argument('--save_video', type=str, default="", help="Duong dan de ghi video dau ra (vd: output.mp4)")
 parser.add_argument('--headless', action='store_true', help="Chay khong can hien thi giao dien (rat huu ich tren Google Colab)")
 parser.add_argument('--split_road', action='store_true', help="Ep buoc giam sat chia lan (chi quan sat lan ben phai cua minh, bo qua lan trai)")
+parser.add_argument('--left_ego', action='store_true', help="Thiet lap lan Ego nam ben trai dai phan cach (mac dinh la ben phai)")
+parser.add_argument('--config_path', type=str, default="config/train_config.yaml", help="Duong dan den file config yaml")
+parser.add_argument('--center_ego', action='store_true', help="Thiet lap lan Ego nam o chinh giua camera (dành cho các video camera hành trình xe ô tô ở giữa làn)")
+parser.add_argument('--no_human', action='store_true', help="Bo qua nhan dien va ve hop bao hop Human (nguoi di bo) de tranh nhiễu tren cao toc/camera hành trình")
 args = parser.parse_args()
 
 video_path = args.video_path
@@ -95,14 +126,9 @@ CLASS_COLORS = [
 # Chuyen sang dung weights thuc cho "road" (toan bo mat duong) thay vi "lane" (chi rieng 1 lan xe)
 unet_weights_path = "weights/UNET_resnet50_road/best_model.pth"
 use_fallback_detection = False
-detection_model = None
-
-# Đặt biến cờ để bật/tắt mô hình Object Detection (Faster R-CNN)
-# Đặt thành False để chạy nhẹ và mượt trên CPU, đặt thành True nếu muốn tải thêm Faster R-CNN
-ENABLE_DETECTION = True
 
 # Doc ten backbone va kich thuoc resize tu file train_config.yaml de khoi tao va chay cho khop
-config_path = "config/train_config.yaml"
+config_path = args.config_path
 backbone = "resnet50" # Default
 resize_dim = (640, 192) # Default width, height (from [192, 640])
 base_threshold = -2.5 # Default
@@ -119,6 +145,21 @@ if os.path.exists(config_path):
         base_threshold = config.get("EVAL", {}).get("base_threshold", base_threshold)
     except:
         pass
+
+# Tự động chuyển đổi nếu file weights/UNET_resnet50_road/best_model.pth không tồn tại nhưng cityscapes có (kiểm tra sau khi đọc config)
+if not os.path.exists(unet_weights_path):
+    alternatives = [
+        "weights/UNET_resnet50_cityscapes/best_model.pth",
+        "./weights/UNET_resnet50_cityscapes/best_model.pth",
+        "weights/best_model.pth",
+        "./weights/best_model.pth",
+        "weights/UNET_resnet50_road/best_model.pth"
+    ]
+    for alt in alternatives:
+        if os.path.exists(alt):
+            unet_weights_path = alt
+            print(f"[INFO] Tu dong chuyen huong file trong so ve checkpoint tim thay tai: {alt}")
+            break
 
 if os.path.exists(unet_weights_path):
     # Load state dict first to inspect number of classes
@@ -158,63 +199,20 @@ if os.path.exists(unet_weights_path):
         exit(1)
         
     unet_model.eval()
-    
-    if num_classes == 1:
-        if ENABLE_DETECTION:
-            print("[INFO] Day la mo hinh phan doan duong nhi phan (1 lop). Nap mo hinh object detection de phat hien phuong tien...")
-            if args.high_acc:
-                try:
-                    from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
-                    detection_model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(device)
-                    print("[INFO] Da nap Faster R-CNN ResNet50 FPN do chinh xac cao.")
-                except Exception as e:
-                    try:
-                        from torchvision.models.detection import ssd300_vgg16, SSD300_VGG16_Weights
-                        detection_model = ssd300_vgg16(weights=SSD300_VGG16_Weights.DEFAULT).to(device)
-                    except Exception as e2:
-                        from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-                        detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
-            else:
-                try:
-                    from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-                    detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
-                except:
-                    from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn
-                    detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(pretrained=True).to(device)
-            detection_model.eval()
-        else:
-            print("[INFO] Day la mo hinh nhi phan. Bo qua nap Faster R-CNN theo thiet lap ENABLE_DETECTION = False.")
 else:
+    num_classes = 8
     unet_model = Unet(num_classes=8, encoder_name=backbone).to(device)
     print(f"[WARNING] Chua co file trong so {unet_weights_path} trong thu muc 'weights'.")
+    print(f"[DEBUG] Thu muc lam viec hien tai (Cwd): {os.getcwd()}")
+    if os.path.exists("weights"):
+        print("[DEBUG] Liet ke tat ca cac file trong thu muc 'weights':")
+        for root, dirs, files in os.walk("weights"):
+            for f in files:
+                print(f"  - {os.path.join(root, f)}")
+    else:
+        print("[DEBUG] Thu muc 'weights' khong ton tai o thu muc lam viec hien tai!")
     print("[WARNING] He thong se tu dong kich hoat Che do Mo phong Thong minh (Simulated Demo Mode) de minh hoa BTL.")
     use_fallback_detection = True
-    
-    if ENABLE_DETECTION:
-        if args.high_acc:
-            print("[INFO] Dang nap mo hinh nhan dien do chinh xac cao Faster R-CNN ResNet50 FPN (Co the chay cham hon tren CPU)...")
-            try:
-                from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
-                detection_model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(device)
-            except Exception as e:
-                try:
-                    from torchvision.models.detection import ssd300_vgg16, SSD300_VGG16_Weights
-                    detection_model = ssd300_vgg16(weights=SSD300_VGG16_Weights.DEFAULT).to(device)
-                except Exception as e2:
-                    print(f"[ERROR] Loi khi nap model high_acc: {e2}. Quay lai Faster RCNN MobileNet.")
-                    from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-                    detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
-        else:
-            print("[INFO] Dang nap mo hinh nhan dien thoi gian thuc Faster RCNN MobileNet...")
-            try:
-                from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn, FasterRCNN_MobileNet_V3_Large_320_FPN_Weights
-                detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(weights=FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT).to(device)
-            except:
-                from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_320_fpn
-                detection_model = fasterrcnn_mobilenet_v3_large_320_fpn(pretrained=True).to(device)
-        detection_model.eval()
-    else:
-        print("[INFO] Che do Mo phong. Bo qua nap Faster R-CNN theo thiet lap ENABLE_DETECTION = False.")
 
 # 2. KHOI TAO MO HINH DEPTH ESTIMATION (MiDaS TFLite cua ibaiGorordo)
 try:
@@ -228,24 +226,29 @@ if not video_path:
     video_path = get_video_path_interactive(project_root)
     if not video_path:
         # Ultimate fallback
-        video_path = "data/sample_videos/video3lightneed.mp4"
+        video_path = "data/sample_videos/video2_dashcam_traffic_lights.mp4"
         print(f"[INFO] Tự động chọn video mặc định: {video_path}")
+is_image_input = any(video_path.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.bmp'])
+if is_image_input:
+    print(f"[INFO] Phat hien dau vao la ANH TINH: {video_path}")
 else:
-    print(f"[INFO] Sử dụng video cấu hình từ đối số: {video_path}")
+    print(f"[INFO] Su dung video cau hinh tu doi so: {video_path}")
 
-# if "video3" in video_path.lower() or "lightneed" in video_path.lower():
+# if "video2" in video_path.lower() or "dashcam" in video_path.lower():
 #     args.full_road = True
-#     print("[INFO] Phat hien video3 (duong 2 chieu). Tu dong bat che do không chia lan (full_road = True)!")
+#     print("[INFO] Phat hien video2 (duong 2 chieu). Tu dong bat che do không chia lan (full_road = True)!")
 
-cap = cv2.VideoCapture(video_path)
-
-if not cap.isOpened():
-    print(f"[WARNING] Khong tim thay video hop le tai thu muc data/sample_videos/")
-    print("[INFO] He thong tu dong chuyen sang su dung Webcam (Device 0) de kiem thu...")
-    cap = cv2.VideoCapture(0)
+if is_image_input:
+    cap = None
+else:
+    cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print("[ERROR] Khong the mo duoc ca video lan Webcam cua may tinh!")
-        exit()
+        print(f"[WARNING] Khong tim thay video hop le tai thu muc data/sample_videos/")
+        print("[INFO] He thong tu dong chuyen sang su dung Webcam (Device 0) de kiem thu...")
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            print("[ERROR] Khong the mo duoc ca video lan Webcam cua may tinh!")
+            exit()
 
 # Kiem tra neu chay tren video chuot lang de hien thi ban demo MiDaS chuan
 is_midas_demo = "ytsave" in video_path.lower() or "tgadvbd" in video_path.lower()
@@ -275,13 +278,12 @@ tracker = Tracker()
 
 
 class InferenceThread(threading.Thread):
-    def __init__(self, input_queue, output_queue, reader_thread, unet_model, detection_model, depth_estimator, device, resize_dim, use_fallback_detection, unet_transform, is_midas_demo, CLASS_COLORS, args, base_threshold):
+    def __init__(self, input_queue, output_queue, reader_thread, unet_model, depth_estimator, device, resize_dim, use_fallback_detection, unet_transform, is_midas_demo, CLASS_COLORS, args, base_threshold):
         super().__init__()
         self.input_queue = input_queue
         self.output_queue = output_queue
         self.reader_thread = reader_thread
         self.unet_model = unet_model
-        self.detection_model = detection_model
         self.depth_estimator = depth_estimator
         self.device = device
         self.resize_dim = resize_dim
@@ -359,23 +361,8 @@ class InferenceThread(threading.Thread):
                     road_opposite_pts = np.array([[int(orig_w * 0.18), int(orig_h * 0.55)], [int(orig_w * 0.38), int(orig_h * 0.55)], [int(orig_w * 0.45), int(orig_h * 0.95)], [int(orig_w * 0.02), int(orig_h * 0.95)]], np.int32)
                     cv2.fillConvexPoly(color_mask, road_pts, (128, 64, 128))
                     cv2.fillConvexPoly(color_mask, road_opposite_pts, (128, 64, 128))
-                    seg_mask_full[cv2.drawContours(np.zeros_like(seg_mask_full), [road_pts, road_opposite_pts], -1, 1, -1) == 1] = 1
-
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    det_w, det_h = 640, 360
-                    frame_det = cv2.resize(frame_rgb, (det_w, det_h))
-                    det_tensor = transforms.ToTensor()(frame_det).unsqueeze(0).to(self.device)
-                    with torch.no_grad():
-                        predictions = self.detection_model(det_tensor)[0]
                     
-                    boxes = predictions['boxes'].cpu().numpy()
-                    labels = predictions['labels'].cpu().numpy()
-                    scores = predictions['scores'].cpu().numpy()
-                    
-                    scale_x_det = orig_w / det_w
-                    scale_y_det = orig_h / det_h
-                    
-                    detected_obstacles = filter_detections(boxes, labels, scores, orig_w, orig_h, scale_x_det, scale_y_det, depth_map)
+                    detected_obstacles = []
                 else:
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     seg_resized = cv2.resize(frame_rgb, self.resize_dim) 
@@ -386,7 +373,16 @@ class InferenceThread(threading.Thread):
                         if seg_output.shape[1] == 1:
                             seg_mask = (seg_output > self.base_threshold).long().squeeze(0).squeeze(0).cpu().numpy()
                         else:
+                            probs = torch.softmax(seg_output, dim=1).squeeze(0)
                             seg_mask = torch.argmax(seg_output, dim=1).squeeze(0).cpu().numpy()
+                            
+                            # Lọc bỏ các pixel Human (6) và Vehicle (7) có độ tin cậy thấp để giảm nhiễu nhận diện nhầm trên vỉa hè/nhà cửa
+                            probs_np = probs.cpu().numpy()
+                            
+                            # Ngưỡng tin cậy cho Human: 0.80 (yêu cầu mô hình chắc chắn mới giữ lại)
+                            seg_mask[(seg_mask == 6) & (probs_np[6] < 0.80)] = 0
+                            # Ngưỡng tin cậy cho Vehicle: 0.60
+                            seg_mask[(seg_mask == 7) & (probs_np[7] < 0.60)] = 0
 
                     seg_mask_unet = cv2.resize(seg_mask, (orig_w, orig_h), interpolation=cv2.INTER_NEAREST)
                     seg_mask_full = np.zeros((orig_h, orig_w), dtype=np.uint8)
@@ -404,29 +400,33 @@ class InferenceThread(threading.Thread):
                         seg_mask_full[seg_mask_unet == 1] = 1
                     else:
                         seg_mask_full = seg_mask_unet
-
+                        
+                    # Filter out false positive vehicle (class 7) and human (class 6) segmentations in the trees and sky
+                    sky_cutoff = int(orig_h * 0.48)
+                    seg_mask_full[0:sky_cutoff, :][seg_mask_full[0:sky_cutoff, :] == 7] = 0
+                    seg_mask_full[0:sky_cutoff, :][seg_mask_full[0:sky_cutoff, :] == 6] = 0
+                    
+                    # Áp dụng morphological operations cho Vehicle (7) và Human (6) ngay trên seg_mask_full để hiển thị mượt mà hơn
+                    kernel_clean = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+                    for c_idx in [6, 7]:
+                        c_mask = (seg_mask_full == c_idx).astype(np.uint8)
+                        if np.any(c_mask):
+                            c_mask_cleaned = cv2.morphologyEx(c_mask, cv2.MORPH_CLOSE, kernel_clean)
+                            c_mask_cleaned = cv2.morphologyEx(c_mask_cleaned, cv2.MORPH_OPEN, kernel_clean)
+                            seg_mask_full[seg_mask_full == c_idx] = 0
+                            seg_mask_full[c_mask_cleaned == 1] = c_idx
+                    
                     detected_obstacles = []
-                    if self.detection_model is not None:
-                        det_w, det_h = 640, 360
-                        frame_det = cv2.resize(frame_rgb, (det_w, det_h))
-                        det_tensor = transforms.ToTensor()(frame_det).unsqueeze(0).to(self.device)
-                        with torch.no_grad():
-                            predictions = self.detection_model(det_tensor)[0]
-                        
-                        boxes = predictions['boxes'].cpu().numpy()
-                        labels = predictions['labels'].cpu().numpy()
-                        scores = predictions['scores'].cpu().numpy()
-                        
-                        scale_x_det = orig_w / det_w
-                        scale_y_det = orig_h / det_h
-                        
-                        detected_obstacles = filter_detections(boxes, labels, scores, orig_w, orig_h, scale_x_det, scale_y_det, depth_map)
 
                 # Run Fusion
                 fused_obstacles = fuse_detections_and_segmentation(
                     detected_obstacles, seg_mask_full, depth_map,
                     self.use_fallback_detection, num_classes
                 )
+                
+                # Lọc bỏ người đi bộ nếu kích hoạt flag --no_human
+                if args.no_human:
+                    fused_obstacles = [det for det in fused_obstacles if det['type'] != 'human']
 
                 # Keep a clean copy of the road segmentation mask before overwriting target bounding boxes
                 seg_mask_road = seg_mask_full.copy()
@@ -459,16 +459,9 @@ class InferenceThread(threading.Thread):
                             cv2.rectangle(color_mask, (xmin, ymin), (xmax, ymax), (153, 153, 153), -1)
                             seg_mask_full[ymin:ymax, xmin:xmax] = 3
                 else:
-                    if getattr(self.unet_model, "num_classes", 8) != 4:
-                        for det in fused_obstacles:
-                            xmin, ymin, xmax, ymax = det['box']
-                            obs_type = det['type']
-                            if obs_type == 'vehicle':
-                                seg_mask_full[ymin:ymax, xmin:xmax] = 7
-                            elif obs_type == 'human':
-                                seg_mask_full[ymin:ymax, xmin:xmax] = 6
-                            elif obs_type in ['traffic light', 'stop sign']:
-                                seg_mask_full[ymin:ymax, xmin:xmax] = 3
+                    # Do not overwrite the raw semantic segmentation mask with solid filled bounding box rectangles.
+                    # This preserves the clean, organic pixel-wise classification of U-Net!
+                    pass
                     
                     color_mask = np.zeros_like(frame)
                     for class_idx, color in enumerate(self.CLASS_COLORS):
@@ -506,7 +499,7 @@ input_queue = queue.Queue(maxsize=3)
 result_queue = queue.Queue(maxsize=3)
 
 # Khoi dong VideoReaderThread
-reader_thread = VideoReaderThread(cap, queue_maxsize=3, skip_frames=args.skip_frames)
+reader_thread = VideoReaderThread(cap, queue_maxsize=3, skip_frames=args.skip_frames, is_image_input=is_image_input, video_path=video_path)
 reader_thread.start()
 
 # Khoi dong InferenceThread
@@ -515,7 +508,6 @@ inference_thread = InferenceThread(
     output_queue=result_queue,
     reader_thread=reader_thread,
     unet_model=unet_model,
-    detection_model=detection_model,
     depth_estimator=depth_estimator,
     device=device,
     resize_dim=resize_dim,
@@ -534,7 +526,7 @@ try:
             # Lay ket qua suy luan tu result_queue
             result = result_queue.get(timeout=0.02)
         except queue.Empty:
-            if reader_thread.stopped and reader_thread.queue.empty() and result_queue.empty():
+            if reader_thread.stopped and reader_thread.queue.empty() and result_queue.empty() and inference_thread.stopped:
                 break
             # Neu cua so OpenCV dang mo, van can bat ky de tranh cua so bi treo (waitKey)
             if not args.headless:
@@ -554,29 +546,37 @@ try:
         orig_h, orig_w = frame.shape[:2]
 
         if disp_w is None:
-            try:
-                user32 = ctypes.windll.user32
-                screen_w = user32.GetSystemMetrics(0)
-                screen_h = user32.GetSystemMetrics(1)
-            except Exception:
-                screen_w = 1280
-                screen_h = 720
-            
-            # Max total width is 75% of screen width to fit nicely
-            max_total_w = int(screen_w * 0.75)
-            max_h = int(screen_h * 0.6)
-            
-            # Calculate width for a single panel
-            target_w = max_total_w // 3
-            target_h = int(target_w * orig_h / orig_w)
-            
-            if target_h > max_h:
-                target_h = max_h
-                target_w = int(target_h * orig_w / orig_h)
-            
-            disp_w, disp_h = target_w, target_h
-            if not args.headless:
-                cv2.resizeWindow(window_name, disp_w * 3, disp_h)
+            if args.headless:
+                # In headless mode (saving video on Colab), use optimized panels (480 width)
+                # This makes the total width 1920 (Full HD standard), which runs 4x faster and is 4x lighter in file size
+                target_w = min(orig_w, 480)
+                target_h = int(target_w * orig_h / orig_w)
+                disp_w, disp_h = target_w, target_h
+                print(f"[INFO] Running in HEADLESS mode. Panel resolution optimized to: {disp_w}x{disp_h} (Total dashboard: {disp_w * 4}x{disp_h})")
+            else:
+                try:
+                    user32 = ctypes.windll.user32
+                    screen_w = user32.GetSystemMetrics(0)
+                    screen_h = user32.GetSystemMetrics(1)
+                except Exception:
+                    screen_w = 1280
+                    screen_h = 720
+                
+                # Max total width is 75% of screen width to fit nicely
+                max_total_w = int(screen_w * 0.75)
+                max_h = int(screen_h * 0.6)
+                
+                # Calculate width for a single panel
+                target_w = max_total_w // 4
+                target_h = int(target_w * orig_h / orig_w)
+                
+                if target_h > max_h:
+                    target_h = max_h
+                    target_w = int(target_h * orig_w / orig_h)
+                
+                disp_w, disp_h = target_w, target_h
+                if not args.headless:
+                    cv2.resizeWindow(window_name, disp_w * 4, disp_h)
 
         # Fetch actual window client area dimensions dynamically to adapt to resizing
         try:
@@ -585,21 +585,21 @@ try:
                 if rect is not None and rect[2] > 100 and rect[3] > 100:
                     win_w, win_h = rect[2], rect[3]
                 else:
-                    win_w, win_h = disp_w * 3, disp_h
+                    win_w, win_h = disp_w * 4, disp_h
             else:
-                win_w, win_h = disp_w * 3, disp_h
+                win_w, win_h = disp_w * 4, disp_h
         except Exception:
-            win_w, win_h = disp_w * 3, disp_h
+            win_w, win_h = disp_w * 4, disp_h
 
-        # Preserve the aspect ratio of the 3 panels combined inside the window client area
-        dash_aspect = 3.0 * (orig_w / orig_h)
+        # Preserve the aspect ratio of the 4 panels combined inside the window client area
+        dash_aspect = 4.0 * (orig_w / orig_h)
         win_aspect = win_w / win_h
         
         if win_aspect > dash_aspect:
             disp_h = win_h
             disp_w = int(disp_h * orig_w / orig_h)
         else:
-            disp_w = win_w // 3
+            disp_w = win_w // 4
             disp_h = int(disp_w * orig_h / orig_w)
             
         disp_w = max(160, disp_w)
@@ -623,10 +623,18 @@ try:
             detected_obstacles = result['detected_obstacles']
             
             view_main = cv2.resize(frame, (disp_w, disp_h))
+            view_input_pure = view_main.copy()
             view_seg = cv2.resize(color_mask, (disp_w, disp_h))
             view_depth = cv2.resize(depth_colored_full, (disp_w, disp_h))
             
             output_frame = cv2.addWeighted(view_main, 0.7, view_seg, 0.3, 0)
+            
+            # Make vehicle (class 7) and human (class 6) segmentations pop out much more by blending them at 0.55 opacity on the output frame
+            vehicle_human_mask = (seg_mask_full == 7) | (seg_mask_full == 6)
+            vehicle_human_mask_resized = cv2.resize(vehicle_human_mask.astype(np.uint8), (disp_w, disp_h), interpolation=cv2.INTER_NEAREST).astype(bool)
+            overlay_strong = cv2.addWeighted(view_main, 0.45, view_seg, 0.55, 0)
+            output_frame[vehicle_human_mask_resized] = overlay_strong[vehicle_human_mask_resized]
+            
             y_top = int(disp_h * 0.45)
             y_bottom = disp_h
             x_top = int(disp_w * 0.50)
@@ -670,29 +678,8 @@ try:
                         tracker.auto_split_road_detected = True
                         print("[AUTO-DETECTION] Phat hien vach ke duong mau vang (vach phan chia 2 chieu). Tu dong bat che do duong 2 chieu (full_road = False)!")
                 
-                # 2. Kiểm tra dải phân cách cứng (cây xanh/bê tông) ở biên trái để tự động nhận dạng đường đôi
-                if tracker.processed_frames_count <= 30:
-                    try:
-                        y1_div = int(orig_h * 0.55)
-                        y2_div = int(orig_h * 0.85)
-                        x1_div = int(orig_w * 0.12)
-                        x2_div = int(orig_w * 0.42)
-                        
-                        left_strip = seg_mask_full[y1_div:y2_div, x1_div:x2_div]
-                        if left_strip.size > 0:
-                            road_class_idx = 0 if (unet_model is not None and getattr(unet_model, "num_classes", 8) == 4) else 1
-                            sky_class_idx = 1 if (unet_model is not None and getattr(unet_model, "num_classes", 8) == 4) else 5
-                            
-                            # Tính số điểm không phải là đường và bầu trời (tức là dải phân cách cứng, vỉa hè hoặc cây cỏ)
-                            divider_pixels = np.sum((left_strip != road_class_idx) & (left_strip != sky_class_idx))
-                            if divider_pixels > (left_strip.size * 0.15):
-                                tracker.divider_check_count += 1
-                    except Exception:
-                        pass
-                    
-                    if tracker.divider_check_count >= 8:
-                        tracker.auto_split_road_detected = True
-                        print("[AUTO-DETECTION] Phat hien dai phan cach cung ben trai. Tu dong bat che do duong doi (full_road = False)!")
+                # 2. Kiem tra dai phan cach cung o bien trai (Da lam mo / Vo hieu hoa vi cay xanh ven duong de bi nhan dien nham tren duong pho thuong)
+                pass
 
                 # 3. Thuật toán động theo dõi xe ngược chiều ở làn trái (dự phòng)
                 for tid, track in active_tracks.items():
@@ -713,23 +700,63 @@ try:
                 if tracker.processed_frames_count == 45:
                     if tracker.oncoming_hits_count >= 8:
                         tracker.auto_split_road_detected = True
-                        print("[AUTO-DETECTION] Phat hien xe nguoc chieu tren lan trai. Tu dong bat che do duong 2 chieu (full_road = False)!")
-                    else:
-                        if not getattr(tracker, 'auto_split_road_detected', False):
-                            print("[AUTO-DETECTION] Khong phat hien xe nguoc chieu hay dai phan cach. Duy tri che do duong 1 chieu (full_road = True).")
                                         
+            # 2. Tự động nhận diện Camera di chuyển (Dashcam) hay đứng yên (CCTV) bằng Luồng quang học (Optical Flow)
+            if not hasattr(tracker, 'camera_movement_samples'):
+                tracker.camera_movement_samples = []
+                tracker.prev_gray_for_flow = None
+                tracker.camera_is_static = False
+                
+            curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            if tracker.prev_gray_for_flow is not None and len(tracker.camera_movement_samples) < 20:
+                try:
+                    # Trích xuất lưới điểm đặc trưng ở nửa trên màn hình (vùng nền tĩnh, tránh xe cộ dưới đường)
+                    h_f, w_f = curr_gray.shape
+                    y_pts = np.linspace(int(h_f * 0.05), int(h_f * 0.35), 4).astype(int)
+                    x_pts = np.linspace(int(w_f * 0.1), int(w_f * 0.9), 8).astype(int)
+                    p0 = []
+                    for py in y_pts:
+                        for px in x_pts:
+                            p0.append([[float(px), float(py)]])
+                    p0 = np.array(p0, dtype=np.float32)
+                    
+                    # Tính toán luồng quang học Lucas-Kanade
+                    p1, st, _ = cv2.calcOpticalFlowPyrLK(tracker.prev_gray_for_flow, curr_gray, p0, None, winSize=(15, 15), maxLevel=2)
+                    good_new = p1[st == 1]
+                    good_old = p0[st == 1]
+                    
+                    if len(good_new) > 0:
+                        displacements = np.linalg.norm(good_new - good_old, axis=1)
+                        tracker.camera_movement_samples.append(np.mean(displacements))
+                except Exception:
+                    pass
+            
+            tracker.prev_gray_for_flow = curr_gray
+            
+            # Sau khi thu thập đủ 15-20 mẫu chuyển động (khoảng 1 giây đầu)
+            if len(tracker.camera_movement_samples) >= 15 and not hasattr(tracker, 'camera_type_decided'):
+                avg_move = np.mean(tracker.camera_movement_samples)
+                # Nếu dịch chuyển trung bình các điểm nền cực kỳ nhỏ (< 0.55 pixel/khung hình) -> Camera đứng yên
+                tracker.camera_is_static = (avg_move < 0.55)
+                tracker.camera_type_decided = True
+                type_str = "CCTV CO DINH" if tracker.camera_is_static else "DASHCAM DI CHUYEN"
+                print(f"[AUTO-DETECTION] Dynamic Optical Flow analysis: mean background displacement = {avg_move:.3f} px/frame. Classified as: {type_str}")
+
+            camera_is_static = getattr(tracker, 'camera_is_static', False)
+            
             if args.full_road:
                 is_full_road = True
             elif args.split_road:
                 is_full_road = False
             else:
-                # Mặc định: Tự động nhận diện loại đường dựa vào kết quả quét vạch vàng/xe ngược chiều
-                is_full_road = not getattr(tracker, 'auto_split_road_detected', False)
+                # Nếu tự động phát hiện camera CCTV tĩnh trên cao -> Mặc định chạy giám sát toàn đường
+                if camera_is_static:
+                    is_full_road = True
+                else:
+                    is_full_road = not getattr(tracker, 'auto_split_road_detected', False)
             
-            if is_full_road:
-                camera_center = (int(disp_w * 0.50), int(disp_h * 0.92))
-            else:
-                camera_center = (int(disp_w * 0.70), int(disp_h * 0.92))
+            # Vi tri camera_center luon dat o tam camera duoi day man hinh theo yeu cau cua De tai 2
+            camera_center = (int(disp_w * 0.50), int(disp_h * 0.92))
             
             path_obstacles_above = []
             path_obstacles_below = []
@@ -737,6 +764,106 @@ try:
             
             h, w = seg_mask_full.shape[:2]
             
+            # Xác định kiểu làn Ego (chạy bình chọn tự thích ứng dựa trên vị trí của xe dẫn đường phía trước)
+            if args.left_ego or args.center_ego:
+                use_left_ego = args.left_ego
+                use_center_ego = args.center_ego
+            else:
+                if not hasattr(tracker, 'left_ego_votes'):
+                    tracker.left_ego_votes = 0
+                    tracker.right_ego_votes = 0
+                    tracker.center_ego_votes = 0
+                    tracker.lane_type_decided = False
+                    tracker.final_use_left_ego = False
+                    tracker.final_use_center_ego = False
+                    tracker.frame_count_for_lane = 0
+                
+                tracker.frame_count_for_lane += 1
+                
+                if not tracker.lane_type_decided:
+                    if active_tracks:
+                        vehicles_near = [t for t in active_tracks.values() if t.get('type') in ['vehicle', 'human']]
+                        if vehicles_near:
+                            # Lọc các xe ở khoảng cách dẫn đường hợp lý từ 4m đến 25m và đã được track ổn định (ít nhất 8 khung hình)
+                            # Điều này giúp loại bỏ hoàn toàn các xe đi ngược chiều chỉ xẹt qua nhanh trong vài khung hình
+                            valid_v = []
+                            for t in vehicles_near:
+                                d = 1000.0 / (t['depth_history'][-1] + 1e-5)
+                                delta_d = t.get('delta_d', 0.0)
+                                if 4.0 <= d <= 25.0 and len(t['depth_history']) >= 8 and delta_d < 0.25:
+                                    valid_v.append((t, d))
+                            if valid_v:
+                                closest_v, d_v = min(valid_v, key=lambda x: x[1])
+                                vx1, _, vx2, _ = closest_v['box']
+                                vx_center = (vx1 + vx2) // 2
+                                if vx_center < w * 0.38:
+                                    tracker.left_ego_votes += 1
+                                elif vx_center > w * 0.62:
+                                    tracker.right_ego_votes += 1
+                                else:
+                                    tracker.center_ego_votes += 1
+                                    
+                    if tracker.frame_count_for_lane >= 45:
+                        tracker.lane_type_decided = True
+                        max_votes = max(tracker.left_ego_votes, tracker.center_ego_votes, tracker.right_ego_votes)
+                        
+                        if max_votes == 0:
+                            # Nếu không có xe nào đi trước, mặc định theo chuyển động camera
+                            if not is_full_road and not camera_is_static:
+                                tracker.final_use_center_ego = True
+                            else:
+                                tracker.final_use_center_ego = False
+                        elif max_votes == tracker.left_ego_votes:
+                            tracker.final_use_left_ego = True
+                            tracker.final_use_center_ego = False
+                        elif max_votes == tracker.center_ego_votes:
+                            tracker.final_use_left_ego = False
+                            if not is_full_road:
+                                tracker.final_use_center_ego = True
+                            else:
+                                tracker.final_use_center_ego = False
+                        else:
+                            tracker.final_use_left_ego = False
+                            tracker.final_use_center_ego = False
+                        print(f"[AUTO-DETECTION] Lane style locked: left_votes={tracker.left_ego_votes}, center_votes={tracker.center_ego_votes}, right_votes={tracker.right_ego_votes}. Locked: left_ego={tracker.final_use_left_ego}, center_ego={tracker.final_use_center_ego}")
+                    
+                    # Quyết định tạm thời trong thời gian bình chọn
+                    use_left_ego = (tracker.left_ego_votes > tracker.center_ego_votes and tracker.left_ego_votes > tracker.right_ego_votes)
+                    use_center_ego = not use_left_ego and not is_full_road
+                else:
+                    use_left_ego = tracker.final_use_left_ego
+                    use_center_ego = tracker.final_use_center_ego
+            
+            # Cập nhật các điểm ranh giới làn dựa trên chế độ làn được chọn (chạy một lần mỗi khung hình)
+            if not is_full_road:
+                if use_center_ego:
+                    # Cấu hình làn Ego nằm chính giữa camera (cho xe đi giữa làn - dịch sang trái một chút để khớp thực tế xe chạy)
+                    x1_l, y1_l = int(w * 0.22), int(h * 0.95)
+                    x2_l, y2_l = int(w * 0.38), int(h * 0.55)
+                    x1_r, y1_r = int(w * 0.62), int(h * 0.95)
+                    x2_r, y2_r = int(w * 0.46), int(h * 0.55)
+                elif pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top and not use_left_ego:
+                    x1_l, y1_l = pt_left_bottom
+                    x2_l, y2_l = pt_left_top
+                    x1_r, y1_r = pt_right_bottom
+                    x2_r, y2_r = pt_right_top
+                elif use_left_ego:
+                    # Cấu hình làn Ego nằm bên trái dải phân cách cứng (làn xe máy của ta)
+                    x1_l, y1_l = int(w * 0.02), int(h * 0.95)
+                    x2_l, y2_l = int(w * 0.15), int(h * 0.55)
+                    x1_r, y1_r = int(w * 0.46), int(h * 0.95)
+                    x2_r, y2_r = int(w * 0.48), int(h * 0.55)
+                else:
+                    x1_l, y1_l = int(w * 0.46), int(h * 0.95)
+                    x2_l, y2_l = int(w * 0.48), int(h * 0.55)
+                    x1_r, y1_r = int(w * 0.98), int(h * 0.95)
+                    x2_r, y2_r = int(w * 0.65), int(h * 0.55)
+                    
+                pt_left_bottom = (x1_l, y1_l)
+                pt_left_top = (x2_l, y2_l)
+                pt_right_bottom = (x1_r, y1_r)
+                pt_right_top = (x2_r, y2_r)
+
             if active_tracks:
                 for tid, track in active_tracks.items():
                     xmin_orig, ymin_orig, xmax_orig, ymax_orig = track['box']
@@ -752,17 +879,6 @@ try:
                         ], dtype=np.int32)
                         is_in_lane = (cv2.pointPolygonTest(ego_poly_orig, (x_center_orig, y_center_orig), False) >= 0)
                     else:
-                        if pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top:
-                            x1_l, y1_l = pt_left_bottom
-                            x2_l, y2_l = pt_left_top
-                            x1_r, y1_r = pt_right_bottom
-                            x2_r, y2_r = pt_right_top
-                        else:
-                            x1_l, y1_l = int(w * 0.46), int(h * 0.95)
-                            x2_l, y2_l = int(w * 0.48), int(h * 0.55)
-                            x1_r, y1_r = int(w * 0.98), int(h * 0.95)
-                            x2_r, y2_r = int(w * 0.65), int(h * 0.55)
-                            
                         if abs(y1_l - y2_l) > 0:
                             x_div_left = x2_l + (y_center_orig - y2_l) * (x1_l - x2_l) / (y1_l - y2_l)
                         else:
@@ -856,13 +972,9 @@ try:
             warn_below = dist_below is not None and dist_below < 5.0
             is_warning = warn_above or warn_below
 
-            # 1. Ve duong ranh gioi mui xe va duong phan lan ky thuat so
+            # (Da xoa EGO-FRONT BOUNDARY va duong ranh gioi theo yeu cau cua De tai 2)
             annot_scale = max(0.35, 0.45 * (disp_h / 360.0))
             annot_thickness = max(1, int(1.5 * (disp_h / 360.0)))
-
-            for x in range(0, disp_w, 20):
-                cv2.line(output_frame, (x, camera_center[1]), (min(x + 10, disp_w), camera_center[1]), (255, 255, 255), 1)
-            cv2.putText(output_frame, "EGO-FRONT BOUNDARY", (15, camera_center[1] - 6), cv2.FONT_HERSHEY_SIMPLEX, annot_scale, (255, 255, 255), annot_thickness, cv2.LINE_AA)
 
             disp_pt_left_bottom = (int(pt_left_bottom[0] * scale_x), int(pt_left_bottom[1] * scale_y)) if pt_left_bottom else None
             disp_pt_left_top = (int(pt_left_top[0] * scale_x), int(pt_left_top[1] * scale_y)) if pt_left_top else None
@@ -886,7 +998,7 @@ try:
                     (int(disp_w * 0.98), int(disp_h * 0.95))
                 ], dtype=np.int32)
                 
-                # Fill poly only on road pixels
+                # Fill poly
                 poly_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
                 cv2.fillPoly(poly_mask, [disp_ego_poly], 255)
                 overlay[poly_mask == 255] = (0, 255, 0)
@@ -896,13 +1008,13 @@ try:
                 cv2.line(line_mask, disp_ego_poly[0], disp_ego_poly[1], 255, 2)
                 cv2.line(line_mask, disp_ego_poly[3], disp_ego_poly[2], 255, 2)
                 
-                # Blend filled poly on road
+                # Blend filled poly
                 blended = cv2.addWeighted(overlay, 0.15, output_frame, 0.85, 0)
-                mask_indices = (poly_mask == 255) & road_mask
+                mask_indices = (poly_mask == 255)
                 output_frame[mask_indices] = blended[mask_indices]
                 
-                # Draw lines on road
-                output_frame[(line_mask == 255) & road_mask] = (0, 255, 0)
+                # Draw lines
+                output_frame[line_mask == 255] = (0, 255, 0)
             else:
                 if pt_left_bottom and pt_left_top and pt_right_bottom and pt_right_top:
                     lane_pts_disp = np.array([disp_pt_left_bottom, disp_pt_left_top, disp_pt_right_top, disp_pt_right_bottom], dtype=np.int32)
@@ -911,29 +1023,50 @@ try:
                     cv2.fillPoly(poly_mask, [lane_pts_disp], 255)
                     overlay[poly_mask == 255] = (0, 255, 0)
                     
-                    line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
-                    cv2.line(line_mask, disp_pt_left_bottom, disp_pt_left_top, 255, 2)
-                    cv2.line(line_mask, disp_pt_right_bottom, disp_pt_right_top, 255, 2)
+                    # Xác định biên phân tách dải phân cách (màu vàng nét đứt) và biên làn ngoài (màu xanh lá)
+                    p_yellow_1, p_yellow_2 = None, None
+                    if use_left_ego:
+                        # Làn xe máy bên trái: dải phân cách cứng nằm bên phải
+                        p_yellow_1, p_yellow_2 = disp_pt_right_bottom, disp_pt_right_top
+                        p_green_1, p_green_2 = disp_pt_left_bottom, disp_pt_left_top
+                    elif not use_center_ego:
+                        # Làn ô tô bên phải: dải phân cách cứng nằm bên trái
+                        p_yellow_1, p_yellow_2 = disp_pt_left_bottom, disp_pt_left_top
+                        p_green_1, p_green_2 = disp_pt_right_bottom, disp_pt_right_top
+                    else:
+                        # Làn chính giữa (Dashcam): Cả hai bên đều là vạch làn bình thường (vẽ màu xanh lá cây)
+                        p_green_1_l, p_green_2_l = disp_pt_left_bottom, disp_pt_left_top
+                        p_green_1_r, p_green_2_r = disp_pt_right_bottom, disp_pt_right_top
                     
                     blended = cv2.addWeighted(overlay, 0.15, output_frame, 0.85, 0)
-                    mask_indices = (poly_mask == 255) & road_mask
+                    mask_indices = (poly_mask == 255)
                     output_frame[mask_indices] = blended[mask_indices]
                     
-                    output_frame[(line_mask == 255) & road_mask] = (0, 255, 0)
-                    
-                    p1, p2 = disp_pt_left_bottom, disp_pt_left_top
-                    num_segments = 15
-                    for i in range(num_segments):
-                        t1 = i / num_segments
-                        t2 = min(1.0, (i + 0.5) / num_segments)
-                        sub_pt1 = (int(p1[0] + t1 * (p2[0] - p1[0])), int(p1[1] + t1 * (p2[1] - p1[1])))
-                        sub_pt2 = (int(p1[0] + t2 * (p2[0] - p1[0])), int(p1[1] + t2 * (p2[1] - p1[1])))
+                    line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
+                    if p_yellow_1 is None:
+                        # Vẽ cả hai biên làn màu xanh lá cây
+                        cv2.line(line_mask, p_green_1_l, p_green_2_l, 255, 2)
+                        cv2.line(line_mask, p_green_1_r, p_green_2_r, 255, 2)
+                        output_frame[line_mask == 255] = (0, 255, 0)
+                    else:
+                        # Vẽ biên làn ngoài màu xanh lá cây
+                        cv2.line(line_mask, p_green_1, p_green_2, 255, 2)
+                        output_frame[line_mask == 255] = (0, 255, 0)
                         
-                        seg_line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
-                        cv2.line(seg_line_mask, sub_pt1, sub_pt2, 255, 2)
-                        output_frame[(seg_line_mask == 255) & road_mask] = (0, 255, 255)
-                        
-                    cv2.putText(output_frame, "LANE SEPARATOR", (disp_pt_left_top[0] - int(10 * (disp_w / 640.0)), disp_pt_left_top[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, annot_scale, (0, 255, 255), annot_thickness, cv2.LINE_AA)
+                        # Vẽ nét đứt màu vàng cho dải phân cách (LANE SEPARATOR) đè khớp lên dải phân cách cứng
+                        num_segments = 15
+                        for i in range(num_segments):
+                            t1 = i / num_segments
+                            t2 = min(1.0, (i + 0.5) / num_segments)
+                            sub_pt1 = (int(p_yellow_1[0] + t1 * (p_yellow_2[0] - p_yellow_1[0])), int(p_yellow_1[1] + t1 * (p_yellow_2[1] - p_yellow_1[1])))
+                            sub_pt2 = (int(p_yellow_1[0] + t2 * (p_yellow_2[0] - p_yellow_1[0])), int(p_yellow_1[1] + t2 * (p_yellow_2[1] - p_yellow_1[1])))
+                            
+                            seg_line_mask = np.zeros((disp_h, disp_w), dtype=np.uint8)
+                            cv2.line(seg_line_mask, sub_pt1, sub_pt2, 255, 2)
+                            output_frame[seg_line_mask == 255] = (0, 255, 255)
+                            
+                        # Ghi nhãn LANE SEPARATOR
+                        cv2.putText(output_frame, "LANE SEPARATOR", (p_yellow_2[0] - int(10 * (disp_w / 640.0)), p_yellow_2[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, annot_scale, (0, 255, 255), annot_thickness, cv2.LINE_AA)
                 else:
                     lane_pts_disp = np.array([
                         (int(disp_w * 0.46), int(disp_h * 0.95)),
@@ -1027,8 +1160,8 @@ try:
                         
                     is_cutting_in = any(x[0] == tid for x in cutting_in_tracks)
                     
-                    # Calculate dynamic thickness scaled by resolution, ensuring a minimum of 2
-                    box_thickness = max(2, int(2.5 * (disp_h / 360.0)))
+                    # Increased thickness and scale for better visibility on the HUD dashboard
+                    box_thickness = 3
                     if is_danger:
                         color = (0, 0, 255) # Red
                         thickness = box_thickness + 1
@@ -1054,8 +1187,8 @@ try:
                         suffix = ""
                         
                     label_text = f"{track['type'].upper()}{suffix} #{tid}: {dist:.1f} rel"
-                    font_scale = max(0.35, 0.5 * (disp_h / 360.0))
-                    font_thickness = max(1, int(1.5 * (disp_h / 360.0)))
+                    font_scale = 0.45
+                    font_thickness = 1
                     (w_label, h_label), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
                     
                     y_label = ymin - 4
@@ -1063,46 +1196,37 @@ try:
                         y_label = ymin + h_label + 8
                         
                     cv2.rectangle(output_frame, (xmin, y_label - h_label - 4), (xmin + w_label + 10, y_label + 4), (0, 0, 0), -1)
-                    label_border_thickness = max(1, int(thickness - 1))
+                    label_border_thickness = 1
                     if is_lost:
                         draw_dashed_rectangle(output_frame, (xmin, y_label - h_label - 4), (xmin + w_label + 10, y_label + 4), color, label_border_thickness)
                     else:
                         cv2.rectangle(output_frame, (xmin, y_label - h_label - 4), (xmin + w_label + 10, y_label + 4), color, label_border_thickness)
                     cv2.putText(output_frame, label_text, (xmin + 5, y_label), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
                     
-                    if track['type'] in ['vehicle', 'human'] and (track['is_in_lane'] or is_cutting_in):
-                        line_thickness = thickness if (is_danger or is_cutting_in) else max(1, thickness - 1)
-                        if is_lost:
-                            draw_dashed_line(output_frame, camera_center, (x_center, y_center), color, line_thickness)
-                        else:
-                            cv2.line(output_frame, camera_center, (x_center, y_center), color, line_thickness)
-                        cv2.circle(output_frame, (x_center, y_center), 4, color, -1)
+                    # (Da xoa duong noi camera den xe va cham/lan duong theo yeu cau cua De tai 2)
 
-            # 5. Ve camera (MY CAR) dong radar chuyen dong bat mat
-            car_color = (0, 0, 255) if is_warning else ((0, 165, 255) if cutting_in_tracks else (0, 255, 0))
-            overlay_car = output_frame.copy()
-            
-            car_radius_outer = max(10, int(20 * (disp_h / 360.0)))
-            car_radius_inner = max(4, int(8 * (disp_h / 360.0)))
-            
-            cv2.circle(overlay_car, camera_center, car_radius_outer, car_color, -1)
-            cv2.addWeighted(overlay_car, 0.25, output_frame, 0.75, 0, output_frame)
-            cv2.circle(output_frame, camera_center, car_radius_inner, car_color, -1)
-            cv2.circle(output_frame, camera_center, car_radius_inner, (255, 255, 255), 1)
-            
-            my_car_scale = max(0.4, 0.5 * (disp_h / 360.0))
-            my_car_thickness = max(1, int(2 * (disp_h / 360.0)))
-            cv2.putText(output_frame, "MY CAR", (camera_center[0] - int(30 * (disp_w / 640.0)), camera_center[1] - int(25 * (disp_h / 360.0))), cv2.FONT_HERSHEY_SIMPLEX, my_car_scale, car_color, my_car_thickness, cv2.LINE_AA)
+            # 5. Ve camera (MY CAR) dong radar chuyen dong bat mat (Da xoa theo yeu cau cua De tai 2)
 
-            dashboard = np.hstack((output_frame, view_seg, view_depth))
+            panel_input = view_input_pure.copy()
+            panel_seg = view_seg.copy()
+            panel_depth = view_depth.copy()
+            panel_fused = output_frame.copy()
+            
+            title_text = "Input Image Frame" if is_image_input else "Input Video Frame"
+            draw_panel_title(panel_input, title_text)
+            draw_panel_title(panel_seg, "Semantic Segmentation (U-Net)")
+            draw_panel_title(panel_depth, "Depth Estimation (MiDaS)")
+            draw_panel_title(panel_fused, "Fused Scene Understanding Overlay", position="bottom")
+            
+            dashboard = np.hstack((panel_input, panel_seg, panel_depth, panel_fused))
 
         # Centering and showing
         canvas = np.zeros((win_h, win_w, 3), dtype=np.uint8)
         y_offset = max(0, (win_h - disp_h) // 2)
-        x_offset = max(0, (win_w - disp_w * 3) // 2)
+        x_offset = max(0, (win_w - disp_w * 4) // 2)
         
         h_draw = min(disp_h, win_h - y_offset)
-        w_draw = min(disp_w * 3, win_w - x_offset)
+        w_draw = min(disp_w * 4, win_w - x_offset)
         
         if h_draw > 0 and w_draw > 0:
             canvas[y_offset:y_offset+h_draw, x_offset:x_offset+w_draw] = dashboard[:h_draw, :w_draw]
@@ -1127,8 +1251,9 @@ try:
         if not args.headless:
             cv2.imshow("BTL Image Processing - Traffic Scene Understanding Pipeline", canvas)
             
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):
+            wait_time = 0 if is_image_input else 1
+            key = cv2.waitKey(wait_time) & 0xFF
+            if key == ord('q') or is_image_input:
                 break
             elif key == ord('s'):
                 try:
@@ -1147,8 +1272,29 @@ try:
                 except Exception as e:
                     print(f"\n[ERROR] Khong the luu anh: {e}")
 
-    # Hoi nguoi dung co muon luu lai khung hinh cuoi cung khi thoat khong
-    if not args.headless:
+    # Tự động lưu ảnh kết quả nếu đầu vào là 1 ảnh tĩnh (hoặc hỏi nếu chạy có giao diện)
+    if is_image_input:
+        try:
+            if 'frame' in locals() and frame is not None:
+                cv2.imwrite("original_image.png", frame)
+                if 'depth_colored_full' in locals() and depth_colored_full is not None:
+                    cv2.imwrite("depth_map.png", depth_colored_full)
+                if 'color_mask' in locals() and color_mask is not None:
+                    seg_overlay = cv2.addWeighted(frame, 0.7, color_mask, 0.3, 0)
+                    cv2.imwrite("segmentation_overlay.png", seg_overlay)
+                    cv2.imwrite("segmentation_color_mask.png", color_mask)
+                if 'output_frame' in locals() and output_frame is not None:
+                    cv2.imwrite("fusion_result.png", output_frame)
+                if 'dashboard' in locals() and dashboard is not None:
+                    cv2.imwrite("dashboard_result.png", dashboard)
+                print("\n" + "="*70)
+                print("[SUCCESS] Dau vao la ANH TINH. Da tu dong luu cac anh ket qua phan tich:")
+                print(" -> original_image.png, depth_map.png, segmentation_overlay.png")
+                print(" -> segmentation_color_mask.png, fusion_result.png, dashboard_result.png")
+                print("="*70)
+        except Exception as e:
+            print(f"[WARNING] Khong the tu dong luu anh tinh: {e}")
+    elif not args.headless:
         try:
             if 'frame' in locals() and frame is not None:
                 print("\n" + "="*70)
@@ -1175,6 +1321,26 @@ try:
     if 'video_writer' in locals() and video_writer is not None:
         video_writer.release()
         print(f"[SUCCESS] Da ghi xong video output vao: {args.save_video}")
+        
+        # Tu dong nen bang FFmpeg de giam toi da dung luong video (rat huu ich tren Google Colab)
+        if os.path.exists(args.save_video) and os.path.getsize(args.save_video) > 1024 * 1024:
+            import shutil
+            import subprocess
+            if shutil.which("ffmpeg") is not None:
+                print("[INFO] Phat hien FFmpeg. Dang tu dong nen video de giam dung luong (chuyen sang H.264)...")
+                temp_output = args.save_video + ".temp.mp4"
+                try:
+                    cmd = ["ffmpeg", "-y", "-i", args.save_video, "-vcodec", "libx264", "-crf", "28", "-preset", "fast", temp_output]
+                    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                    if os.path.exists(temp_output) and os.path.getsize(temp_output) > 0:
+                        old_size = os.path.getsize(args.save_video) / (1024 * 1024)
+                        new_size = os.path.getsize(temp_output) / (1024 * 1024)
+                        shutil.move(temp_output, args.save_video)
+                        print(f"[SUCCESS] Tu dong nen video hoan tat: {old_size:.1f} MB -> {new_size:.1f} MB (Tiet kiem {((old_size - new_size)/old_size)*100:.1f}% dung luong)!")
+                except Exception as e:
+                    if os.path.exists(temp_output):
+                        os.remove(temp_output)
+                    print(f"[WARNING] Khong the nen video bang FFmpeg: {e}")
 finally:
     # Dam bao luon dung cac luong khi chuong trinh ket thuc
     reader_thread.stop()
@@ -1182,7 +1348,8 @@ finally:
     reader_thread.join(timeout=1.0)
     inference_thread.join(timeout=1.0)
 
-cap.release()
+if cap is not None:
+    cap.release()
 if not args.headless:
     cv2.destroyAllWindows()
 print("[INFO] Chuong trinh ket thuc tot dep.")

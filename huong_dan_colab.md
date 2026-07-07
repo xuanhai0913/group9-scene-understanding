@@ -9,8 +9,8 @@ Tài liệu này hướng dẫn từng bước (Step-by-step) để bạn đưa 
 Cách đơn giản và ổn định nhất để chạy trên Google Colab là lưu trữ dự án trên Google Drive của bạn:
 
 1. **Nén thư mục dự án**: 
-   * Hãy nén thư mục `traffic-scene-understanding-btl` của bạn thành file `.zip` (ví dụ: `project.zip`).
-   * *Lưu ý*: Hãy đảm bảo đã bao gồm thư mục `weights` (chứa `weights/UNET_resnet50_road/best_model.pth`), thư mục `data/sample_videos` (chứa các video kiểm thử như `video1.mp4`, `video2.mp4`), và thư mục `MidasDepthEstimation`.
+   * Hãy nén thư mục `group9-scene-understanding` (hoặc `traffic-scene-understanding-btl`) của bạn thành file `.zip` (ví dụ: `project.zip`).
+   * *Lưu ý*: Hãy đảm bảo đã bao gồm thư mục `weights` (chứa `weights/UNET_resnet50_cityscapes/best_model.pth`), thư mục `data/sample_videos` (chứa các video kiểm thử như `video1_ho-chi-minh.mov`, `video2_dashcam_traffic_lights.mp4`), và thư mục `MidasDepthEstimation`.
 2. **Tải lên Google Drive**:
    * Mở Google Drive của bạn.
    * Tải file `project.zip` lên một thư mục trên Google Drive (Ví dụ: tạo thư mục tên là `BTL_XLA` rồi tải file zip lên đó).
@@ -63,24 +63,24 @@ Bạn hãy chọn chạy một trong các chế độ dưới đây tùy theo m�
 Giả lập xe mình chạy hoàn toàn ở làn bên phải của đường 1 chiều, bỏ qua các xe ở làn trái để không bị cảnh báo đỏ đè vạch:
 ```bash
 # Chạy video 1 (khuyên dùng):
-!python -m utils.main --video_path data/sample_videos/ho-chi-minh-road-traffic.mp4 --headless --split_road --save_video output_video1.mp4
+!python -m utils.main --video_path data/sample_videos/video1_ho-chi-minh.mov --headless --split_road --save_video output_video1.mp4
 
-# Chạy video 3 (tăng tốc nhanh gấp 3 lần bằng --skip_frames 3):
-!python -m utils.main --video_path data/sample_videos/video3lightneed.mp4 --headless --split_road --skip_frames 3 --save_video output_video3.mp4
+# Chạy video 2 (tăng tốc nhanh gấp 3 lần bằng --skip_frames 3):
+!python -m utils.main --video_path data/sample_videos/video2_dashcam_traffic_lights.mp4 --headless --split_road --skip_frames 3 --save_video output_video2.mp4
 ```
 
 **2. Chế độ Giám sát toàn bộ mặt đường (Chế độ mặc định tự động):**
 Giám sát toàn bộ các làn đường chạy song song:
 ```bash
 # Chạy video 1:
-!python -m utils.main --video_path data/sample_videos/ho-chi-minh-road-traffic.mp4 --headless --save_video output_video1.mp4
+!python -m utils.main --video_path data/sample_videos/video1_ho-chi-minh.mov --headless --save_video output_video1.mp4
 ```
 
 > [!NOTE]
 > *   Cờ `--headless` đảm bảo chương trình chạy nền không mở cửa sổ hiển thị đồ họa OpenCV (bắt buộc trên Colab).
-> *   Cờ `--split_road` giúp giới hạn hành lang an toàn màu xanh lá ở làn bên phải và dịch chuyển tâm `MY CAR` sang bên phải (khắc phục hiện tượng tâm xe bị đè lên vạch phân làn ở giữa).
-> *   Cờ `--skip_frames 3` giúp tăng tốc độ xử lý video lên gấp 3 lần bằng cách bỏ qua bớt các khung hình trung gian (rất hữu ích cho Video 3 dung lượng lớn ~98MB).
-> *   Nhờ có **GPU T4**, tốc độ xử lý sẽ đạt mức **~30 FPS** (Thời gian thực).
+> *   Cờ `--split_road` giúp kích hoạt chế độ tự định vị làn đường Ego di chuyển thông minh (tự động bình chọn và khóa cứng sau 45 khung hình đầu tiên để tránh nhấp nháy HUD).
+> *   Cờ `--skip_frames 3` giúp tăng tốc độ xử lý video lên gấp 3 lần bằng cách bỏ qua bớt các khung hình trung gian (rất hữu ích cho các video dung lượng lớn).
+> *   Nhờ có **GPU T4**, tốc độ xử lý sẽ đạt mức cực cao (thời gian thực).
 
 ---
 

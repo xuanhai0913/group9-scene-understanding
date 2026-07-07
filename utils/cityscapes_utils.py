@@ -77,15 +77,32 @@ class CityscapesLabelEncoder:
         if len(classes) == 2:
             classes = [0]
 
-        for unique in np.unique(labelIds):
-            labelIds[labelIds == unique] = self.cityscapes_labels_df[self.cityscapes_labels_df["id"] == unique][mode]
-        labelIds = labelIds.astype(int)
+        # Use caching to store vectorized mapping table
+        if not hasattr(self, '_mapping_tables'):
+            self._mapping_tables = {}
+        if mode not in self._mapping_tables:
+            table = np.zeros(256, dtype=np.int32)
+            for _, row in self.cityscapes_labels_df.iterrows():
+                lid = int(row["id"])
+                if 0 <= lid < 256:
+                    table[lid] = int(row[mode])
+            self._mapping_tables[mode] = table
 
-        ohe_labels = np.zeros(labelIds.shape[:2] + (len(classes),))
+        mapping_table = self._mapping_tables[mode]
+        
+        # Only take the first channel of labelIds
+        label_channel = labelIds[..., 0]
+        
+        # Clip values to 0-255 to prevent out of bounds indexing
+        label_channel = np.clip(label_channel, 0, 255)
+        
+        mapped = mapping_table[label_channel]
+        
+        ohe_labels = np.zeros(mapped.shape + (len(classes),), dtype=np.int32)
         for c in classes:
-            ys, xs = np.where(labelIds[..., 0] == c)
-            ohe_labels[ys, xs, c] = 1
-        return ohe_labels.astype(int)
+            ohe_labels[..., c] = (mapped == c)
+            
+        return ohe_labels
 
     def inverse_ohe(self, ohe_labels):
         """converts one-hot encoded mask to the multiclass mask"""
@@ -175,14 +192,25 @@ class CityscapesDataset(CustomDataset):
     def __getitem__(self, idx):
         image_id = self.data_set[idx]    
         img = open_img(image_id[0])
+        
+        # Resize image to self.orig_size to speed up augmentations and data loading
+        if self.orig_size is not None:
+            import cv2
+            img = cv2.resize(img, (self.orig_w, self.orig_h), interpolation=cv2.INTER_LINEAR)
+            
         if self.phase != "test":
             labelIds = open_img(image_id[1])
+            if self.orig_size is not None:
+                import cv2
+                labelIds = cv2.resize(labelIds, (self.orig_w, self.orig_h), interpolation=cv2.INTER_NEAREST)
             mask = self.label_encoder.make_ohe(labelIds, mode="catId" if self.train_on_cats else "trainId")
             img, mask = self.transformer(image=img, mask=mask).values()
         else:
             img = self.transformer(image=img)["image"]
+            
         if self.resize is not None:
             img = self.final_resizing(image=img)["image"]
+            
         if self.phase != "test":
             img, mask = ToTensorV2()(image=img, mask=mask).values()
             mask = mask.permute(2, 0, 1) # N_CLASSESxHxW
