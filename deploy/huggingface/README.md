@@ -10,7 +10,11 @@ pinned: false
 
 Image demo for the Group 9 traffic scene understanding pipeline:
 
-- road semantic segmentation with U-Net ResNet-50,
+- Cityscapes semantic segmentation with U-Net ResNet-50 over 8 groups
+  (background, flat/road, construction, object/sign, nature, sky, human,
+  vehicle),
+- optional road-only U-Net baseline for comparison with the original
+  project checkpoint,
 - MiDaS relative depth estimation,
 - Faster R-CNN MobileNet object detection,
 - lane/HUD visualization with relative-distance labels,

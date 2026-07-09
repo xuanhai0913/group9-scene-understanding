@@ -116,16 +116,21 @@ class UnetResNet50(nn.Module):
         return self.final(self.dec0(dec1))
 
 
-def load_road_model(checkpoint_path):
+def _load_checkpoint(checkpoint_path):
     try:
-        checkpoint = torch.load(
+        return torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    except TypeError:
+        return torch.load(checkpoint_path, map_location="cpu")
+    except Exception:
+        return torch.load(
             checkpoint_path,
             map_location="cpu",
-            weights_only=True,
+            weights_only=False,
         )
-    except TypeError:
-        checkpoint = torch.load(checkpoint_path, map_location="cpu")
 
+
+def load_segmentation_model(checkpoint_path):
+    checkpoint = _load_checkpoint(checkpoint_path)
     state_dict = checkpoint.get("state_dict", checkpoint)
     if any(key.startswith("module.") for key in state_dict):
         state_dict = OrderedDict(
@@ -138,3 +143,7 @@ def load_road_model(checkpoint_path):
     model.load_state_dict(state_dict)
     model.eval()
     return model
+
+
+def load_road_model(checkpoint_path):
+    return load_segmentation_model(checkpoint_path)

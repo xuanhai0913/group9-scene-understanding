@@ -13,17 +13,21 @@ from torchvision.models.detection import (
 )
 import torchvision.transforms.functional as F
 
-from model import load_road_model
+from model import load_segmentation_model
 
 
 MODEL_REPO_ID = "xuanhai0913/group9-scene-understanding-models"
 ROAD_MODEL_FILENAME = "unet_resnet50_road_state_dict.pth"
+CITYSCAPES_MODEL_FILENAME = "unet_resnet50_cityscapes_state_dict.pth"
 MIDAS_MODEL_FILENAME = "midas_v2_1_small.tflite"
 
 SEGMENTATION_SIZE = (1280, 384)
 SEGMENTATION_THRESHOLD = -2.5
 MAX_OUTPUT_SIDE = 1280
 PANEL_SIZE = (480, 270)
+
+CITYSCAPES_MODE = "Cityscapes U-Net (8 semantic groups)"
+ROAD_MODE = "Project U-Net road baseline"
 
 VEHICLE_LABELS = {2, 3, 4, 6, 8}
 HUMAN_LABELS = {1}
@@ -38,21 +42,50 @@ RGB_BLACK = (0, 0, 0)
 RGB_PURPLE = (128, 64, 128)
 RGB_DARK_GREEN = (0, 90, 0)
 
+CLASS_NAMES = [
+    "void/background",
+    "flat/road",
+    "construction",
+    "object/sign",
+    "nature",
+    "sky",
+    "human",
+    "vehicle",
+]
+CLASS_COLORS = np.array(
+    [
+        (0, 0, 0),
+        (128, 64, 128),
+        (70, 70, 70),
+        (220, 220, 0),
+        (107, 142, 35),
+        (70, 130, 180),
+        (220, 20, 60),
+        (0, 0, 230),
+    ],
+    dtype=np.uint8,
+)
+
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
-def resolve_model_file(filename):
+def resolve_model_file(filename, required=True):
     local_model_dir = os.getenv("MODEL_ASSET_DIR")
     if local_model_dir:
         local_path = Path(local_model_dir) / filename
         if local_path.is_file():
             return str(local_path)
 
-    return hf_hub_download(
-        repo_id=MODEL_REPO_ID,
-        filename=filename,
-    )
+    try:
+        return hf_hub_download(
+            repo_id=MODEL_REPO_ID,
+            filename=filename,
+        )
+    except Exception:
+        if required:
+            raise
+        return None
 
 
 class MidasDepthEstimator:
@@ -108,17 +141,26 @@ class MidasDepthEstimator:
 @lru_cache(maxsize=1)
 def load_runtime():
     road_checkpoint = resolve_model_file(ROAD_MODEL_FILENAME)
+    cityscapes_checkpoint = resolve_model_file(
+        CITYSCAPES_MODEL_FILENAME,
+        required=False,
+    )
     midas_checkpoint = resolve_model_file(MIDAS_MODEL_FILENAME)
     detector_weights = FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT
     detector = fasterrcnn_mobilenet_v3_large_320_fpn(
         weights=detector_weights,
     )
     detector.eval()
-    return (
-        load_road_model(road_checkpoint),
-        MidasDepthEstimator(midas_checkpoint),
-        detector,
-    )
+    return {
+        "road_model": load_segmentation_model(road_checkpoint),
+        "cityscapes_model": (
+            load_segmentation_model(cityscapes_checkpoint)
+            if cityscapes_checkpoint
+            else None
+        ),
+        "depth_estimator": MidasDepthEstimator(midas_checkpoint),
+        "detector": detector,
+    }
 
 
 def normalize_input(image):
@@ -144,7 +186,21 @@ def normalize_input(image):
     return image
 
 
-def predict_road_mask(model, image_rgb):
+def select_segmentation_model(runtime, segmentation_mode):
+    if segmentation_mode == CITYSCAPES_MODE and runtime["cityscapes_model"]:
+        return runtime["cityscapes_model"], CITYSCAPES_MODE, ""
+
+    if segmentation_mode == CITYSCAPES_MODE:
+        note = (
+            "Cityscapes checkpoint is not available in the model repo yet; "
+            "falling back to the road baseline."
+        )
+    else:
+        note = ""
+    return runtime["road_model"], ROAD_MODE, note
+
+
+def predict_segmentation(model, image_rgb):
     resized = cv2.resize(
         image_rgb,
         SEGMENTATION_SIZE,
@@ -160,13 +216,16 @@ def predict_road_mask(model, image_rgb):
 
     with torch.inference_mode():
         logits = model(tensor)
-        mask = (logits[0, 0] > SEGMENTATION_THRESHOLD).cpu().numpy()
+        if logits.shape[1] == 1:
+            class_map = (logits[0, 0] > SEGMENTATION_THRESHOLD).cpu().numpy()
+        else:
+            class_map = torch.argmax(logits, dim=1)[0].cpu().numpy()
 
     return cv2.resize(
-        mask.astype(np.uint8),
+        class_map.astype(np.uint8),
         (image_rgb.shape[1], image_rgb.shape[0]),
         interpolation=cv2.INTER_NEAREST,
-    ).astype(bool)
+    )
 
 
 def compute_overlap(box1, box2):
@@ -303,10 +362,35 @@ def add_panel_title(image, title):
     return panel
 
 
-def make_color_mask(image_rgb, road_mask):
-    color_mask = np.zeros_like(image_rgb)
-    color_mask[road_mask] = RGB_PURPLE
-    return color_mask
+def make_color_mask(class_map, model_num_classes):
+    if model_num_classes == 1:
+        color_mask = np.zeros(class_map.shape + (3,), dtype=np.uint8)
+        color_mask[class_map == 1] = RGB_PURPLE
+        return color_mask
+
+    clipped = np.clip(class_map, 0, len(CLASS_COLORS) - 1)
+    return CLASS_COLORS[clipped]
+
+
+def derive_road_mask(class_map, model_num_classes):
+    if model_num_classes == 1:
+        return class_map == 1
+    return class_map == 1
+
+
+def summarize_semantic_classes(class_map, model_num_classes):
+    if model_num_classes == 1:
+        road_coverage = float((class_map == 1).mean() * 100.0)
+        return road_coverage, f"Semantic coverage: road {road_coverage:.1f}%"
+
+    total = class_map.size
+    parts = []
+    for class_id, name in enumerate(CLASS_NAMES):
+        ratio = float((class_map == class_id).sum() / total * 100.0)
+        if ratio >= 1.0:
+            parts.append(f"{name} {ratio:.1f}%")
+    road_coverage = float((class_map == 1).mean() * 100.0)
+    return road_coverage, "Semantic coverage: " + ", ".join(parts[:7])
 
 
 def lane_geometry(width, height):
@@ -515,10 +599,10 @@ def annotate_scene(image_rgb, color_mask, road_mask, disparity, obstacles):
     return output, fusion, status_text, lane_obstacles
 
 
-def build_dashboard(image_rgb, color_mask, depth_rgb, fusion):
+def build_dashboard(image_rgb, color_mask, depth_rgb, fusion, segmentation_title):
     panels = [
         ("Input Image Frame", image_rgb),
-        ("Semantic Segmentation (U-Net)", color_mask),
+        (segmentation_title, color_mask),
         ("Depth Estimation (MiDaS)", depth_rgb),
         ("Fused Scene Understanding Overlay", fusion),
     ]
@@ -529,16 +613,21 @@ def build_dashboard(image_rgb, color_mask, depth_rgb, fusion):
     return np.hstack(resized)
 
 
-def analyze_scene(image):
+def analyze_scene(image, segmentation_mode):
     image_rgb = normalize_input(image)
-    road_model, depth_estimator, detector = load_runtime()
+    runtime = load_runtime()
+    segmentation_model, resolved_mode, fallback_note = select_segmentation_model(
+        runtime,
+        segmentation_mode,
+    )
 
-    road_mask = predict_road_mask(road_model, image_rgb)
-    disparity = depth_estimator.predict(image_rgb)
-    color_mask = make_color_mask(image_rgb, road_mask)
+    class_map = predict_segmentation(segmentation_model, image_rgb)
+    road_mask = derive_road_mask(class_map, segmentation_model.num_classes)
+    disparity = runtime["depth_estimator"].predict(image_rgb)
+    color_mask = make_color_mask(class_map, segmentation_model.num_classes)
     depth_bgr = cv2.applyColorMap(disparity, cv2.COLORMAP_JET)
     depth_rgb = cv2.cvtColor(depth_bgr, cv2.COLOR_BGR2RGB)
-    obstacles = detect_obstacles(detector, image_rgb, disparity)
+    obstacles = detect_obstacles(runtime["detector"], image_rgb, disparity)
     hud_overlay, fusion, status_text, lane_obstacles = annotate_scene(
         image_rgb,
         color_mask,
@@ -546,9 +635,23 @@ def analyze_scene(image):
         disparity,
         obstacles,
     )
-    dashboard = build_dashboard(image_rgb, color_mask, depth_rgb, fusion)
+    segmentation_title = (
+        "Semantic Segmentation (U-Net Cityscapes)"
+        if resolved_mode == CITYSCAPES_MODE
+        else "Semantic Segmentation (U-Net Road)"
+    )
+    dashboard = build_dashboard(
+        image_rgb,
+        color_mask,
+        depth_rgb,
+        fusion,
+        segmentation_title,
+    )
 
-    road_coverage = float(road_mask.mean() * 100.0)
+    road_coverage, semantic_summary = summarize_semantic_classes(
+        class_map,
+        segmentation_model.num_classes,
+    )
     nearest = min(
         (obs for obs in obstacles if obs["type"] in {"vehicle", "human"}),
         key=lambda item: item["distance"],
@@ -561,12 +664,16 @@ def analyze_scene(image):
     )
     summary = (
         f"{status_text}\n\n"
+        f"Segmentation model: {resolved_mode}\n"
         f"Detected objects: {len(obstacles)} "
         f"({len(lane_obstacles)} in ego lane)\n"
         f"Road coverage: {road_coverage:.1f}%\n"
+        f"{semantic_summary}\n"
         f"{nearest_text}\n\n"
         "Relative distance is a heuristic from MiDaS disparity, not meters."
     )
+    if fallback_note:
+        summary = f"{fallback_note}\n\n{summary}"
     return (
         dashboard,
         image_rgb,
@@ -589,6 +696,11 @@ with gr.Blocks(title="Traffic Scene Understanding") as demo:
             height=420,
         )
         with gr.Column():
+            segmentation_mode = gr.Radio(
+                choices=[CITYSCAPES_MODE, ROAD_MODE],
+                value=CITYSCAPES_MODE,
+                label="Segmentation model",
+            )
             run_button = gr.Button("Analyze full pipeline", variant="primary")
             clear_button = gr.ClearButton(
                 value="Clear",
@@ -640,7 +752,7 @@ with gr.Blocks(title="Traffic Scene Understanding") as demo:
     ]
     run_button.click(
         fn=analyze_scene,
-        inputs=input_image,
+        inputs=[input_image, segmentation_mode],
         outputs=outputs,
         show_progress="full",
     )
